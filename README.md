@@ -1,182 +1,114 @@
-# EduMate AI – Smart Assistant for Students
+# 🎓 EduMate AI – Smart Assistant for Students
 
 ![Hackathon Project](https://img.shields.io/badge/Hackathon-Project-brightgreen)
 ![React](https://img.shields.io/badge/React-18.2-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.109-green)
+![Status](https://img.shields.io/badge/Status-Production--Ready-orange)
 
-A visually stunning, AI-powered web platform designed to help students with exam preparation, career planning, and professional development. Built for hackathon demonstration with modern design, smooth UX, and practical AI features.
+A visually stunning, AI-powered web platform designed to help students with exam preparation, career planning, and professional development. Built for hackathon demonstration with modern design, smooth UX, and robust backend persistence.
 
-## 🌟 Features
+## 🚀 NEW: EduMate AI Core Upgrades
+- **🔒 Secure Authentication**: Personal user accounts with JWT-based sessions.
+- **💾 Full Data Persistence**: All study plans, resumes, and interview feedback are saved to a local SQLite database.
+- **🎤 Voice-Enabled Mock Interviews**: Practice technical interviews with real-time speech synthesis and voice recognition.
+- **🕒 User History**: Access your past generates anytime from your dashboard.
+
+## 🌟 Key Features
 
 ### 1. **AI Study Planner** 📚
-Generate personalized daily study schedules based on:
-- Your subjects
-- Exam dates
-- Available study hours per day
+Generate personalized daily study schedules and save them to your account.
+- YouTube resource links for every subject.
+- Progress tracking and persistent storage.
 
 ### 2. **AI Notes Summarizer** 📝
 Transform lengthy notes into concise, exam-focused bullet points instantly.
 
 ### 3. **AI Answer Evaluator** ✅
-Get instant feedback on your exam answers with:
-- Estimated marks
-- Detailed feedback
-- Strengths and areas for improvement
+Get instant feedback on your exam answers with estimated marks, strengths, and areas for improvement.
 
 ### 4. **AI Career Advisor** 🎯
-Discover suitable career paths based on:
-- Your interests
-- Current skills
-- Education level
-
-Includes salary ranges, growth potential, and required skills.
+Discover suitable career paths based on interests and skills, including salary ranges and growth potential.
 
 ### 5. **AI Resume Builder** 📄
-Create professional, ATS-friendly resumes with:
-- Live preview
-- ATS compatibility score
-- Optimization suggestions
-- Professional formatting
+Create professional, ATS-friendly resumes with live preview, ATS scoring, and PDF download support.
+
+### 6. **AI Mock Interview** 🎙️
+Practice technical interviews with an AI that speaks to you.
+- **Real-time Feedback**: Get scored after every answer.
+- **Full History**: Review your total evaluation marks and complete chat transcripts later.
 
 ## 🎨 Design Highlights
-
-- **Vibrant Gradients**: Blue, purple, teal, and orange color scheme
-- **Modern Card Layouts**: Rounded corners, soft shadows, smooth transitions
-- **Responsive Design**: Works on all screen sizes
-- **Smooth Animations**: Fade-in effects and hover interactions
-- **Student-Friendly**: Energetic yet professional interface
+- **Vibrant Gradients**: Professional color palettes for each feature.
+- **Glassmorphism**: Modern cards with subtle shadows and blur effects.
+- **Dark Mode Support**: Seamlessly switch between light and dark themes.
+- **Interactive UI**: Hover effects, micro-animations, and smooth transitions.
 
 ## 🚀 Tech Stack
 
 ### Frontend
-- **React 18** - Modern UI library
-- **Vite** - Fast build tool
-- **React Router** - Client-side routing
-- **Axios** - HTTP client
-- **Vanilla CSS** - Custom design system
+- **React 18** (Vite)
+- **Context API** (State & Auth Management)
+- **Web Speech API** (Voice Recognition & TTS)
+- **Axios** (API Communication)
+- **Vanilla CSS** (Custom Design System)
 
 ### Backend
-- **FastAPI** - Modern Python web framework
-- **Pydantic** - Data validation
-- **Uvicorn** - ASGI server
+- **FastAPI** (Python High-Performance Backend)
+- **SQLAlchemy** (Database ORM)
+- **SQLite** (Local Data Storage)
+- **PyJWT** (Secure Token Authentication)
+- **GPT-4o/Gemini** (Advanced AI Reasoning)
 
 ## 📦 Installation & Setup
 
 ### Prerequisites
-- Node.js (v16 or higher)
-- Python (v3.8 or higher)
-- npm or yarn
+- Node.js (v16+)
+- Python (v3.8+)
 
-### Backend Setup
+### The "One-Step" Launch
+Run the automated batch file to start both frontend and backend:
+```cmd
+./start.bat
+```
 
-1. Navigate to the backend directory:
+### Manual Backend Setup
 ```bash
 cd backend
-```
-
-2. Create a virtual environment (optional but recommended):
-```bash
 python -m venv venv
-venv\Scripts\activate  # On Windows
-# source venv/bin/activate  # On macOS/Linux
-```
-
-3. Install dependencies:
-```bash
+venv\Scripts\activate  # Windows
 pip install -r requirements.txt
-```
-
-4. Run the FastAPI server:
-```bash
 uvicorn main:app --reload
 ```
 
-The API will be available at `http://localhost:8000`
-
-### Frontend Setup
-
-1. Navigate to the frontend directory:
+### Manual Frontend Setup
 ```bash
 cd frontend
-```
-
-2. Install dependencies:
-```bash
 npm install
-```
-
-3. Start the development server:
-```bash
 npm run dev
 ```
 
-The app will open at `http://localhost:3000`
-
-## 🎯 Usage
-
-1. **Start Both Servers**: Make sure both backend (port 8000) and frontend (port 3000) are running
-
-2. **Open the App**: Navigate to `http://localhost:3000` in your browser
-
-3. **Explore Features**: Click on any feature card on the dashboard to try it out
-
-4. **Demo Flow**:
-   - Fill in the form for any feature
-   - Click the action button (e.g., "Generate Plan")
-   - View AI-generated results in beautiful, colorful layouts
-
 ## 📁 Project Structure
-
 ```
 Hackathon-Nirman/
 ├── backend/
-│   ├── main.py              # FastAPI application
-│   └── requirements.txt     # Python dependencies
+│   ├── main.py              # Main API Endpoints
+│   ├── models.py            # Database Schema
+│   ├── auth.py              # JWT Authentication Logic
+│   ├── database.py          # SQLAlchemy Setup
+│   └── edumate.db           # SQLite Database File
 └── frontend/
-    ├── index.html           # HTML entry point
-    ├── package.json         # npm dependencies
-    ├── vite.config.js       # Vite configuration
-    └── src/
-        ├── main.jsx         # React entry point
-        ├── App.jsx          # Main app component
-        ├── index.css        # Design system & styles
-        └── pages/
-            ├── Dashboard.jsx
-            ├── StudyPlanner.jsx
-            ├── NotesSummarizer.jsx
-            ├── AnswerEvaluator.jsx
-            ├── CareerRecommendation.jsx
-            └── ResumeBuilder.jsx
+    ├── src/
+    │   ├── context/         # Auth & Global State
+    │   ├── pages/           # All Feature Pages
+    │   ├── components/      # Shared Reusable Components
+    │   └── App.jsx          # Route Configuration
 ```
 
-## 🎭 Demo Tips for Judges
-
-1. **Visual Impact**: The landing page immediately showcases all 5 features with colorful cards
-2. **Simple Workflow**: Form-based inputs (no complex prompts needed)
-3. **Instant Results**: AI responses displayed in visually appealing formats
-4. **Complete Solution**: Covers student journey from exam prep to career readiness
-5. **Production-Ready Design**: Modern, professional UI that feels like a real product
-
-## 🤖 AI Responses
-
-Currently using **mock AI responses** suitable for hackathon demonstrations. The backend generates realistic, contextual responses that showcase the platform's capabilities.
-
-For production deployment, these can be easily replaced with actual AI model integrations (OpenAI, Gemini, etc.).
+## 🤖 AI Integration
+EduMate AI uses a sophisticated prompt engineering layer to turn raw LLM responses into structured, educational insights. It is configured to work with OpenAI's GPT-4o or Google's Gemini Pro for high-quality student guidance.
 
 ## 👥 Team
-
-Built by a team of 4 students for a hackathon demonstration.
+Built with ❤️ for **Hackathon Nirman** by a team of dedicated student developers.
 
 ## 📝 License
-
-This project is created for educational and hackathon purposes.
-
-## 🙏 Acknowledgments
-
-- Google Fonts (Inter)
-- React & FastAPI communities
-- All open-source contributors
-
----
-
-**Made with ❤️ for students, by students**
+MIT License - Created for educational and hackathon purposes.
