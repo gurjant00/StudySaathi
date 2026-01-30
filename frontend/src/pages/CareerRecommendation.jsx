@@ -1,0 +1,231 @@
+import React, { useState } from 'react';
+import axios from 'axios';
+import { Link } from 'react-router-dom';
+import { API_URL } from '../config';
+
+// const API_URL = 'http://127.0.0.1:8000';
+
+function CareerRecommendation() {
+    const [formData, setFormData] = useState({
+        interests: '',
+        skills: '',
+        education_level: 'Undergraduate'
+    });
+    const [loading, setLoading] = useState(false);
+    const [result, setResult] = useState(null);
+    const [error, setError] = useState('');
+
+    React.useEffect(() => {
+        fetchLatestRecommendation();
+    }, []);
+
+    const fetchLatestRecommendation = async () => {
+        try {
+            const response = await axios.get(`${API_URL}/api/career-recommendation/latest`);
+            if (response.data) {
+                setResult(response.data);
+            }
+        } catch (err) {
+            console.error("Failed to fetch latest recommendation:", err);
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        setResult(null);
+
+        try {
+            const interests = formData.interests.split(',').map(s => s.trim()).filter(s => s);
+            const skills = formData.skills.split(',').map(s => s.trim()).filter(s => s);
+
+            const response = await axios.post(`${API_URL}/api/career-recommendation`, {
+                interests,
+                skills,
+                education_level: formData.education_level
+            });
+            setResult(response.data);
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Failed to get recommendations. Make sure the backend is running.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const growthColors = {
+        'Excellent': '#10b981',
+        'Very Good': '#3b82f6',
+        'Good': '#f59e0b'
+    };
+
+    return (
+        <div className="container section fade-in">
+            <Link to="/" className="btn btn-secondary mb-2">← Back to Dashboard</Link>
+
+            <div className="card" style={{ maxWidth: '800px', margin: '0 auto' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div className="feature-icon" style={{ background: 'var(--gradient-orange)' }}>🎯</div>
+                    <div>
+                        <h2 style={{ margin: 0 }}>AI Career Advisor</h2>
+                        <p style={{ margin: 0 }}>Discover your ideal career path</p>
+                    </div>
+                </div>
+
+                <form onSubmit={handleSubmit}>
+                    <div className="form-group">
+                        <label className="form-label">Your Interests (comma-separated)</label>
+                        <input
+                            type="text"
+                            className="form-input"
+                            placeholder="e.g., Technology, Design, Marketing"
+                            value={formData.interests}
+                            onChange={(e) => setFormData({ ...formData, interests: e.target.value })}
+                            required
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label className="form-label">Your Skills (comma-separated)</label>
+                        <input
+                            type="text"
+                            className="form-input"
+                            placeholder="e.g., Python, Communication, Problem Solving"
+                            value={formData.skills}
+                            onChange={(e) => setFormData({ ...formData, skills: e.target.value })}
+                            required
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label className="form-label">Education Level</label>
+                        <select
+                            className="form-select"
+                            value={formData.education_level}
+                            onChange={(e) => setFormData({ ...formData, education_level: e.target.value })}
+                            required
+                        >
+                            <option value="High School">High School</option>
+                            <option value="Undergraduate">Undergraduate</option>
+                            <option value="Graduate">Graduate</option>
+                            <option value="Postgraduate">Postgraduate</option>
+                        </select>
+                    </div>
+
+                    {error && (
+                        <div style={{ background: '#fee', color: '#c33', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>
+                            {error}
+                        </div>
+                    )}
+
+                    <button type="submit" className="btn btn-primary btn-large" style={{ width: '100%' }} disabled={loading}>
+                        {loading ? 'Analyzing...' : '🔍 Find Career Paths'}
+                    </button>
+                </form>
+            </div>
+
+            {loading && (
+                <div className="loading-container">
+                    <div className="loading"></div>
+                </div>
+            )}
+
+            {result && (
+                <div style={{ maxWidth: '900px', margin: '2rem auto' }}>
+                    <div className="result-card">
+                        <div className="result-header">
+                            <h2 style={{ margin: 0 }}>Recommended Career Paths</h2>
+                            <span className="result-badge">AI Generated</span>
+                        </div>
+
+                        <div className="grid-2">
+                            {result.recommended_careers.map((career, index) => (
+                                <div
+                                    key={index}
+                                    className="card"
+                                    style={{
+                                        background: `linear-gradient(135deg, ${growthColors[career.growth_potential]}10 0%, ${growthColors[career.growth_potential]}05 100%)`,
+                                        border: `2px solid ${growthColors[career.growth_potential]}40`
+                                    }}
+                                >
+                                    <div style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'start',
+                                        marginBottom: '1rem'
+                                    }}>
+                                        <h3 style={{ margin: 0, color: growthColors[career.growth_potential] }}>
+                                            {career.title}
+                                        </h3>
+                                        <span style={{
+                                            background: growthColors[career.growth_potential],
+                                            color: 'white',
+                                            padding: '0.25rem 0.75rem',
+                                            borderRadius: '20px',
+                                            fontSize: '0.8rem',
+                                            fontWeight: '600'
+                                        }}>
+                                            {career.growth_potential}
+                                        </span>
+                                    </div>
+
+                                    <p style={{ color: 'var(--color-text)' }}>{career.description}</p>
+
+                                    <div style={{ marginTop: '1rem' }}>
+                                        <strong style={{ color: 'var(--color-text)' }}>💰 Salary Range:</strong>
+                                        <p style={{ margin: '0.25rem 0' }}>{career.salary_range}</p>
+                                    </div>
+
+                                    <div style={{ marginTop: '1rem' }}>
+                                        <strong style={{ color: 'var(--color-text)' }}>Required Skills:</strong>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                            {career.required_skills.map((skill, idx) => (
+                                                <span
+                                                    key={idx}
+                                                    style={{
+                                                        background: 'white',
+                                                        padding: '0.25rem 0.75rem',
+                                                        borderRadius: '20px',
+                                                        fontSize: '0.85rem',
+                                                        color: 'var(--color-text)',
+                                                        border: '1px solid var(--color-border)'
+                                                    }}
+                                                >
+                                                    {skill}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Skills to Develop */}
+                    <div className="result-card">
+                        <h3 style={{ color: 'var(--color-primary)' }}>📚 Skills You Should Develop</h3>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '1rem' }}>
+                            {result.skills_to_develop.map((skill, index) => (
+                                <div
+                                    key={index}
+                                    style={{
+                                        background: 'var(--gradient-orange)',
+                                        color: 'white',
+                                        padding: '0.75rem 1.5rem',
+                                        borderRadius: 'var(--radius-md)',
+                                        fontWeight: '600',
+                                        boxShadow: 'var(--shadow-md)'
+                                    }}
+                                >
+                                    {skill}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+export default CareerRecommendation;
