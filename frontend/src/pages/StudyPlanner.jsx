@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { API_URL } from '../config';
+import { useAuth } from '../context/AuthContext';
 
 // const API_URL = 'http://127.0.0.1:8000';
 
@@ -14,6 +15,11 @@ function StudyPlanner() {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
     const [error, setError] = useState('');
+    const { token } = useAuth();
+
+    const authHeaders = {
+        headers: { Authorization: `Bearer ${token}` }
+    };
 
     React.useEffect(() => {
         fetchLatestPlan();
@@ -21,7 +27,7 @@ function StudyPlanner() {
 
     const fetchLatestPlan = async () => {
         try {
-            const response = await axios.get(`${API_URL}/api/study-planner/latest`);
+            const response = await axios.get(`${API_URL}/api/study-planner/latest`, authHeaders);
             if (response.data) {
                 setResult(response.data);
             }
@@ -49,7 +55,7 @@ function StudyPlanner() {
                 subjects,
                 exam_date: formData.exam_date,
                 hours_per_day: parseInt(formData.hours_per_day)
-            });
+            }, authHeaders);
 
             setResult(response.data);
         } catch (err) {

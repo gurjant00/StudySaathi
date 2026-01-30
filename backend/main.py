@@ -220,7 +220,8 @@ class MockInterviewRequest(BaseModel):
     user_response: Optional[str] = None
     current_question_index: int = 0
     previous_question: Optional[str] = None
-    full_history: Optional[List[dict]] = None # [{sender: 'ai', text: '...'}, ...]
+    full_history: Optional[List[dict]] = None
+    cumulative_score: Optional[int] = 0
 
 class MockInterviewResponse(BaseModel):
     next_question: Optional[str] = None
@@ -658,7 +659,7 @@ async def mock_interview(
              new_interview = models.MockInterviewSession(
                  user_id=current_user.id,
                  language=request.language,
-                 overall_score=data.get("score", 0),
+                 overall_score=request.cumulative_score + data.get("score", 0),
                  chat_history=json.dumps(history),
                  feedback_data=json.dumps(data)
              )

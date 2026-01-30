@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { API_URL } from '../config';
+import { useAuth } from '../context/AuthContext';
 
 // const API_URL = 'http://127.0.0.1:8000';
 
@@ -14,6 +15,11 @@ function CareerRecommendation() {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
     const [error, setError] = useState('');
+    const { token } = useAuth();
+
+    const authHeaders = {
+        headers: { Authorization: `Bearer ${token}` }
+    };
 
     React.useEffect(() => {
         fetchLatestRecommendation();
@@ -21,7 +27,7 @@ function CareerRecommendation() {
 
     const fetchLatestRecommendation = async () => {
         try {
-            const response = await axios.get(`${API_URL}/api/career-recommendation/latest`);
+            const response = await axios.get(`${API_URL}/api/career-recommendation/latest`, authHeaders);
             if (response.data) {
                 setResult(response.data);
             }
@@ -44,7 +50,7 @@ function CareerRecommendation() {
                 interests,
                 skills,
                 education_level: formData.education_level
-            });
+            }, authHeaders);
             setResult(response.data);
         } catch (err) {
             setError(err.response?.data?.detail || 'Failed to get recommendations. Make sure the backend is running.');

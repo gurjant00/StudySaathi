@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { API_URL } from '../config';
+import { useAuth } from '../context/AuthContext';
 
 // const API_URL = 'http://127.0.0.1:8000';
 
@@ -14,6 +15,11 @@ function AnswerEvaluator() {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
     const [error, setError] = useState('');
+    const { token } = useAuth();
+
+    const authHeaders = {
+        headers: { Authorization: `Bearer ${token}` }
+    };
 
     React.useEffect(() => {
         fetchLatestEvaluation();
@@ -21,7 +27,7 @@ function AnswerEvaluator() {
 
     const fetchLatestEvaluation = async () => {
         try {
-            const response = await axios.get(`${API_URL}/api/answer-evaluator/latest`);
+            const response = await axios.get(`${API_URL}/api/answer-evaluator/latest`, authHeaders);
             if (response.data) {
                 setResult(response.data);
             }
@@ -40,7 +46,7 @@ function AnswerEvaluator() {
             const response = await axios.post(`${API_URL}/api/answer-evaluator`, {
                 ...formData,
                 max_marks: parseInt(formData.max_marks)
-            });
+            }, authHeaders);
             setResult(response.data);
         } catch (err) {
             setError(err.response?.data?.detail || 'Failed to evaluate answer. Make sure the backend is running.');

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { API_URL } from '../config';
+import { useAuth } from '../context/AuthContext';
 
 // const API_URL = 'http://127.0.0.1:8000';
 
@@ -13,6 +14,11 @@ function NotesSummarizer() {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
     const [error, setError] = useState('');
+    const { token } = useAuth();
+
+    const authHeaders = {
+        headers: { Authorization: `Bearer ${token}` }
+    };
 
     React.useEffect(() => {
         fetchLatestSummary();
@@ -20,7 +26,7 @@ function NotesSummarizer() {
 
     const fetchLatestSummary = async () => {
         try {
-            const response = await axios.get(`${API_URL}/api/notes-summarizer/latest`);
+            const response = await axios.get(`${API_URL}/api/notes-summarizer/latest`, authHeaders);
             if (response.data) {
                 setResult(response.data);
             }
@@ -36,7 +42,7 @@ function NotesSummarizer() {
         setResult(null);
 
         try {
-            const response = await axios.post(`${API_URL}/api/notes-summarizer`, formData);
+            const response = await axios.post(`${API_URL}/api/notes-summarizer`, formData, authHeaders);
             setResult(response.data);
         } catch (err) {
             setError(err.response?.data?.detail || 'Failed to summarize notes. Make sure the backend is running.');

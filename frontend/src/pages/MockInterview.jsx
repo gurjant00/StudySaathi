@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { API_URL } from '../config';
+import { useAuth } from '../context/AuthContext';
 
 // const API_URL = 'http://127.0.0.1:8000';
 
@@ -16,6 +17,12 @@ function MockInterview() {
     const [feedback, setFeedback] = useState(null);
     const [score, setScore] = useState(0);
     const [history, setHistory] = useState([]);
+    const { token } = useAuth();
+
+    // Helper for authenticated requests
+    const authHeaders = {
+        headers: { Authorization: `Bearer ${token}` }
+    };
 
     useEffect(() => {
         fetchHistory();
@@ -23,7 +30,7 @@ function MockInterview() {
 
     const fetchHistory = async () => {
         try {
-            const response = await axios.get(`${API_URL}/api/mock-interview/history`);
+            const response = await axios.get(`${API_URL}/api/mock-interview/history`, authHeaders);
             setHistory(response.data);
         } catch (err) {
             console.error("Failed to fetch history:", err);
@@ -33,7 +40,7 @@ function MockInterview() {
     const fetchSessionDetail = async (id) => {
         setLoading(true);
         try {
-            const response = await axios.get(`${API_URL}/api/mock-interview/session/${id}`);
+            const response = await axios.get(`${API_URL}/api/mock-interview/session/${id}`, authHeaders);
             const data = response.data;
             setMessages(data.chat_history);
             setScore(data.overall_score);
@@ -94,13 +101,14 @@ function MockInterview() {
         setMessages([]);
         setCurrentQuestionIndex(0);
         setScore(0);
+        setFeedback(null);
 
         try {
             // Fetch first question
             const response = await axios.post(`${API_URL}/api/mock-interview`, {
                 language: selectedLang,
                 current_question_index: 0
-            });
+            }, authHeaders);
 
             setStep('interview');
             const question = response.data.next_question;
@@ -147,8 +155,9 @@ function MockInterview() {
                 language: language,
                 user_response: inputToSubmit,
                 current_question_index: currentQuestionIndex + 1,
-                full_history: messages // Send the conversation so far
-            });
+                full_history: messages, // Send the conversation so far
+                cumulative_score: score
+            }, authHeaders);
 
             // Handle Response
             const data = response.data;

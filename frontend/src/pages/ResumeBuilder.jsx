@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { API_URL } from '../config';
+import { useAuth } from '../context/AuthContext';
 
 function ResumeBuilder() {
     const [formData, setFormData] = useState({
@@ -16,6 +17,11 @@ function ResumeBuilder() {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
     const [error, setError] = useState('');
+    const { token } = useAuth();
+
+    const authHeaders = {
+        headers: { Authorization: `Bearer ${token}` }
+    };
 
     React.useEffect(() => {
         fetchLatestResume();
@@ -23,7 +29,7 @@ function ResumeBuilder() {
 
     const fetchLatestResume = async () => {
         try {
-            const response = await axios.get(`${API_URL}/api/resume-builder/latest`);
+            const response = await axios.get(`${API_URL}/api/resume-builder/latest`, authHeaders);
             if (response.data) {
                 setResult(response.data);
             }
@@ -77,7 +83,7 @@ function ResumeBuilder() {
             const response = await axios.post(`${API_URL}/api/resume-builder`, {
                 ...formData,
                 skills
-            });
+            }, authHeaders);
             setResult(response.data);
         } catch (err) {
             setError(err.response?.data?.detail || 'Failed to build resume. Make sure the backend is running.');
