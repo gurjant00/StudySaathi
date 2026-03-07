@@ -31,7 +31,7 @@ function About() {
             <div className="hero">
                 <h1 className="text-gradient">Meet Our Team</h1>
                 <p className="hero-subtitle">
-                    The innovative minds behind EduMate AI. We're dedicated to transforming the way students learn using the power of Artificial Intelligence.
+                    The innovative minds behind StudySaathi. We're dedicated to transforming the way students learn using the power of Artificial Intelligence.
                 </p>
             </div>
 
@@ -47,7 +47,7 @@ function About() {
                 {team.map((member, index) => (
                     <div
                         key={index}
-                        className="card text-center"
+                        className="card glass-card glass-card text-center"
                         style={{ padding: '3rem 2rem' }}
                     >
                         {/* Profile Photo */}

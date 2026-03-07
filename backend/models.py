@@ -32,7 +32,7 @@ class Resume(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     resume_html = Column(Text)
-    ats_score = Column(Integer)
+    resume_data = Column(Text) # JSON string of original form data
     created_at = Column(DateTime, default=datetime.utcnow)
 
     owner = relationship("User", back_populates="resumes")

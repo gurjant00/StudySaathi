@@ -41,8 +41,8 @@ pip install fastapi uvicorn pydantic python-multipart --only-binary=:all:
 
 Or use Conda:
 ```cmd
-conda create -n edumate python=3.10
-conda activate edumate
+conda create -n studysaathi python=3.10
+conda activate studysaathi
 conda install -c conda-forge fastapi uvicorn pydantic python-multipart
 ```
 

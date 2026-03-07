@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { API_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
 
 // const API_URL = 'http://127.0.0.1:8000';
 
 function AnswerEvaluator() {
+    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         question: '',
         student_answer: '',
@@ -64,9 +65,9 @@ function AnswerEvaluator() {
 
     return (
         <div className="container section fade-in">
-            <Link to="/" className="btn btn-secondary mb-2">← Back to Dashboard</Link>
+            <button onClick={() => navigate(-1)} className="btn btn-secondary mb-2">← Go Back</button>
 
-            <div className="card" style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <div className="card glass-card glass-card glass-card" style={{ maxWidth: '800px', margin: '0 auto' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
                     <div className="feature-icon" style={{ background: 'var(--gradient-teal)' }}>✅</div>
                     <div>

@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { API_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
 
 // const API_URL = 'http://127.0.0.1:8000';
 
 function MockInterview() {
+    const navigate = useNavigate();
     const [step, setStep] = useState('setup'); // setup | interview | result | history
     const [language, setLanguage] = useState('');
     const [messages, setMessages] = useState([]);
@@ -17,6 +18,7 @@ function MockInterview() {
     const [feedback, setFeedback] = useState(null);
     const [score, setScore] = useState(0);
     const [history, setHistory] = useState([]);
+    const [error, setError] = useState('');
     const { token } = useAuth();
 
     // Helper for authenticated requests
@@ -114,9 +116,9 @@ function MockInterview() {
             const question = response.data.next_question;
             setMessages([{ sender: 'ai', text: question }]);
             speakText(question);
-        } catch (error) {
-            console.error("Error starting interview:", error);
-            alert("Failed to start interview. Is the backend running?");
+        } catch (err) {
+            console.error("Error starting interview:", err);
+            alert(err.response?.data?.detail || "Failed to start interview. Is the backend running?");
         } finally {
             setLoading(false);
         }
@@ -147,6 +149,7 @@ function MockInterview() {
         const newMessages = [...messages, { sender: 'user', text: userInput }];
         setMessages(newMessages);
         setLoading(true);
+        setError('');
         const inputToSubmit = userInput;
         setUserInput('');
 
@@ -185,8 +188,11 @@ function MockInterview() {
 
             setMessages(finalMessages);
 
-        } catch (error) {
-            console.error("Error submitting answer:", error);
+        } catch (err) {
+            console.error("Error submitting answer:", err);
+            setError(err.response?.data?.detail || 'Failed to submit answer. Make sure the backend is running.');
+            // Remove the user's message so they can try again if the API failed
+            setMessages(messages);
         } finally {
             setLoading(false);
         }
@@ -194,14 +200,14 @@ function MockInterview() {
 
     return (
         <div className="container section fade-in">
-            <Link to="/" className="btn btn-secondary mb-2">← Back to Dashboard</Link>
+            <button onClick={() => navigate(-1)} className="btn btn-secondary mb-2">← Go Back</button>
 
-            <div className="card" style={{ maxWidth: '800px', margin: '0 auto', minHeight: '600px', display: 'flex', flexDirection: 'column' }}>
+            <div className="card glass-card glass-card glass-card" style={{ maxWidth: '800px', margin: '0 auto', minHeight: '600px', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--color-border)', paddingBottom: '1rem' }}>
                     <div className="feature-icon" style={{ background: 'var(--gradient-purple)', fontSize: '2rem' }}>🎤</div>
                     <div>
-                        <h2 style={{ margin: 0 }}>AI Mock Interview</h2>
-                        <p style={{ margin: 0, color: 'var(--color-text-secondary)' }}>Practice technical interviews with Voice AI</p>
+                        <h2 className="glow-text" style={{ margin: 0 }}>AI Mock Interview</h2>
+                        <p style={{ margin: 0, color: 'var(--color-text-secondary)' }}>Master your technical skills with Voice AI</p>
                     </div>
                 </div>
 
@@ -229,7 +235,7 @@ function MockInterview() {
                             {['Python', 'Java', 'C++', 'C'].map(lang => (
                                 <button
                                     key={lang}
-                                    className="card hover-card"
+                                    className="card glass-card glass-card hover-card"
                                     style={{ textAlign: 'center', cursor: 'pointer', border: '2px solid transparent', color: 'var(--color-text)' }}
                                     onClick={() => startInterview(lang)}
                                     disabled={loading}
@@ -267,7 +273,7 @@ function MockInterview() {
                                 {history.map(item => (
                                     <div
                                         key={item.id}
-                                        className="card hover-card"
+                                        className="card glass-card glass-card hover-card"
                                         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
                                         onClick={() => fetchSessionDetail(item.id)}
                                     >
@@ -312,6 +318,12 @@ function MockInterview() {
                             ))}
                             {loading && <div className="message ai" style={{ background: 'var(--color-bg-secondary)', padding: '1rem', borderRadius: '1rem', border: '1px solid var(--color-border)' }}>Analyzing answer...</div>}
                         </div>
+
+                        {error && (
+                            <div style={{ background: 'rgba(255, 0, 0, 0.1)', color: '#ff4d4d', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>
+                                {error}
+                            </div>
+                        )}
 
                         <form onSubmit={submitAnswer} style={{ display: 'flex', gap: '1rem', marginTop: 'auto' }}>
                             <button

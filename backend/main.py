@@ -1,14 +1,32 @@
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 from datetime import datetime, timedelta
 import os
 import json
-from bytez import Bytez
+import re
+import io
+from openai import OpenAI
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
+import urllib3
+import ssl
+
+# --- Development SSL Bypass for Windows --- 
+urllib3.disable_warnings()
+os.environ["CURL_CA_BUNDLE"] = ""
+os.environ["REQUESTS_CA_BUNDLE"] = ""
+try:
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+else:
+    ssl._create_default_https_context = _create_unverified_https_context
+# ------------------------------------------
+
 
 # Local imports
 import models
@@ -20,19 +38,21 @@ models.Base.metadata.create_all(bind=engine)
 
 load_dotenv()
 
-# Configure Bytez API
-API_KEY = os.getenv("BYTEZ_API_KEY")
+# Configure Groq API via OpenAI SDK
+API_KEY = os.getenv("GROQ_API_KEY")
 if not API_KEY:
-    print("Warning: BYTEZ_API_KEY not found in .env file")
+    print("Warning: GROQ_API_KEY not found in .env file")
 
 try:
-    sdk = Bytez(API_KEY)
-    model = sdk.model("openai/gpt-4o")
+    client = OpenAI(
+        api_key=API_KEY,
+        base_url="https://api.groq.com/openai/v1",
+    )
 except Exception as e:
-    print(f"Failed to initialize Bytez SDK: {e}")
-    model = None
+    print(f"Failed to initialize OpenAI SDK for Groq: {e}")
+    client = None
 
-app = FastAPI(title="EduMate AI API", description="Smart Assistant for Students (Powered by GPT-4o via Bytez)")
+app = FastAPI(title="StudySaathi API", description="Your Personal AI Study Companion (Powered by Groq)")
 
 # CORS Configuration
 app.add_middleware(
@@ -45,27 +65,18 @@ app.add_middleware(
 
 # ==================== Helper Functions ====================
 async def get_ai_response(prompt: str):
-    if not model:
-         raise HTTPException(status_code=500, detail="AI Model not initialized")
+    if not client:
+         raise HTTPException(status_code=500, detail="AI Client not initialized")
     
     try:
-        results = model.run([
-          {
-            "role": "user",
-            "content": prompt
-          }
-        ])
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=4000,
+            temperature=0.7
+        )
         
-        if results.error:
-             raise HTTPException(status_code=500, detail=f"AI Service Error: {results.error}")
-             
-        output = results.output
-        
-        # Extract content if it's in the wrapper format {'role': 'assistant', 'content': '...'}
-        if isinstance(output, dict) and 'content' in output:
-            output = output['content']
-            
-        return output
+        return response.choices[0].message.content
     except Exception as e:
         print(f"AI Execution Error: {e}")
         raise HTTPException(status_code=500, detail=f"AI Service Error: {str(e)}")
@@ -76,16 +87,32 @@ def parse_json_response(response_text):
         return response_text
 
     try:
-        # Remove any Markdown cleanup (```json ... ```)
-        cleaned_text = response_text.replace("```json", "").replace("```", "").strip()
-        parsed = json.loads(cleaned_text)
+        text = response_text
+        
+        # Try to extract just the JSON block in case there's markdown or conversational text
+        match = re.search(r'\{.*\}', text, re.DOTALL)
+        if match:
+            text = match.group(0)
+            
+        # Clean up any leftover markdown block formatting
+        cleaned_text = text.replace("```json", "").replace("```", "").strip()
+        
+        # Fix invalid JSON escape sequences (e.g. \' which AI generates for apostrophes)
+        # This removes backslashes that are NOT followed by valid JSON escape chars: " \ / b f n r t u
+        cleaned_text = re.sub(r'\\(?!["\\/bfnrtu])', '', cleaned_text)
+        
+        # strict=False allows unescaped control characters (like actual newlines) inside strings
+        parsed = json.loads(cleaned_text, strict=False)
         return parsed
     except AttributeError:
         # If response_text is not a string but also not a dict
         return response_text
-    except json.JSONDecodeError:
-        print(f"Failed to parse JSON: {response_text}")
-        raise HTTPException(status_code=500, detail="Failed to parse AI response")
+    except json.JSONDecodeError as e:
+        print(f"================ RAW AI OUTPUT ==================")
+        print(response_text)
+        print(f"=================================================")
+        print(f"JSON Error details: {e}")
+        raise HTTPException(status_code=500, detail="Failed to parse AI response. Please try generating again.")
 
 # ==================== Request/Response Models ====================
 
@@ -94,6 +121,7 @@ class StudyPlannerRequest(BaseModel):
     subjects: List[str]
     exam_date: str
     hours_per_day: int
+    topic_focus: Optional[str] = None
 
 class Resource(BaseModel):
     title: str
@@ -118,8 +146,44 @@ class NotesSummarizerRequest(BaseModel):
 
 class NotesSummarizerResponse(BaseModel):
     summary: List[str]
+    flashcards: List[dict] # [{"question": "...", "answer": "..."}]
     key_points: int
     topic: str
+
+# Doubt Solver Models
+class DoubtSolverRequest(BaseModel):
+    question: str
+    context: Optional[str] = None
+
+class DoubtSolverResponse(BaseModel):
+    explanation: str
+    simplified_explanation: str
+    examples: List[str]
+    topic: str
+
+# Quiz Generator Models
+class QuizGeneratorRequest(BaseModel):
+    topic: str
+
+class QuizQuestion(BaseModel):
+    question: str
+    options: List[str]
+    correct_answer: str
+    explanation: str
+
+class QuizGeneratorResponse(BaseModel):
+    questions: List[QuizQuestion]
+    topic: str
+
+# Concept Explainer Models
+class ConceptExplainerRequest(BaseModel):
+    concept: str
+
+class ConceptExplainerResponse(BaseModel):
+    concept: str
+    simple_explanation: str
+    analogy: str
+    key_takeaways: List[str]
 
 # Answer Evaluator Models
 class AnswerEvaluatorRequest(BaseModel):
@@ -175,7 +239,7 @@ class ResumeBuilderRequest(BaseModel):
 
 class ResumeBuilderResponse(BaseModel):
     resume_html: str
-    ats_score: int
+    resume_data: Optional[dict] = None
     suggestions: List[str]
 
 
@@ -283,7 +347,7 @@ def get_me(current_user: models.User = Depends(get_current_user)):
 @app.get("/")
 def read_root():
     return {
-        "message": "Welcome to EduMate AI API",
+        "message": "Welcome to StudySaathi API",
         "version": "2.0.0",
         "mode": "Real AI Mode (GPT-4o)",
         "features": [
@@ -304,14 +368,43 @@ async def generate_study_plan(
 ):
     """Generate and save a personalized study schedule"""
     
+    topic_context = ""
+    if request.topic_focus:
+        topic_context = f"\n    SPECIFIC TOPIC FOCUS: The student wants to specifically focus on these topics within their subjects: {request.topic_focus}. Prioritize these topics in the study plan and allocate more time and resources to them.\n"
+
+    # Calculate days between now and exam
+    try:
+        current_date = datetime.now()
+        exam_date_obj = datetime.strptime(request.exam_date, "%Y-%m-%d")
+        total_days_between = (exam_date_obj - current_date).days + 1
+        days_to_generate = min(max(total_days_between, 1), 14) # Generate at least 1 day, max 14
+    except Exception:
+        total_days_between = 7
+        days_to_generate = 7
+
     prompt = f"""
     Create a detailed daily study plan for a student preparing for exams.
     Subjects: {', '.join(request.subjects)}
-    Exam Date: {request.exam_date}
+    Exam Date: {request.exam_date} (Total days left: {total_days_between})
     Available Hours per Day: {request.hours_per_day}
-    Today's Date: {datetime.now().strftime("%Y-%m-%d")}
+    Today's Date: {current_date.strftime("%Y-%m-%d")}
+    {topic_context}
 
-    The response MUST be a JSON object with the following structure:
+    INSTRUCTIONS FOR DATE GENERATION:
+    1. Generate a plan for exactly {days_to_generate} days starting from {current_date.strftime("%Y-%m-%d")}.
+    2. THE DATES MUST BE SEQUENTIAL AND ACCURATE (e.g., if Day 1 is 2024-03-07, Day 2 MUST be 2024-03-08).
+    3. THE "day" NAME (e.g., Monday, Tuesday) MUST MATCH THE "date" PROVIDED.
+    
+    SPELLING AUTO-CORRECT (VERY IMPORTANT): If the subject names have minor spelling mistakes (e.g., "Mathmatics" instead of "Mathematics", "Phisics" instead of "Physics", "Chemsitry" instead of "Chemistry"), automatically correct them and proceed normally. Only reject if the input is completely unrelated to academics (e.g., a person's name, random gibberish).
+
+    INPUT VALIDATION: If the input is truly NOT academic subjects (e.g., just a person's name, random characters, or completely nonsensical text), return this JSON:
+    {{
+        "error": true,
+        "message": "The input doesn't look like academic subjects. Did you mean to enter subject names like 'Mathematics, Physics, Chemistry'?",
+        "suggestion": "Try entering valid subject names separated by commas."
+    }}
+
+    If the input IS valid (even with minor typos — auto-correct them), generate the study plan as the following JSON:
     {{
         "plan": [
             {{
@@ -336,6 +429,10 @@ async def generate_study_plan(
 
     response_text = await get_ai_response(prompt)
     data = parse_json_response(response_text)
+    
+    # Check for input validation error
+    if data.get("error"):
+        raise HTTPException(status_code=400, detail=data.get("message", "Invalid input") + " 💡 " + data.get("suggestion", ""))
     
     # Save to database
     new_plan = models.StudyPlan(
@@ -378,9 +475,24 @@ async def summarize_notes(
     
     prompt = f"""
     Summarize the following notes on the topic "{request.topic}".
-    Provide the output strictly in valid JSON format:
+    Also generate 3-5 high-quality flashcards (question and answer pairs) for active recall.
+
+    SPELLING AUTO-CORRECT (VERY IMPORTANT): If the topic name has minor spelling mistakes (e.g., "Photosynthsis" instead of "Photosynthesis"), automatically correct it and proceed normally. Only reject if the input is completely unrelated to academics.
+
+    INPUT VALIDATION: If the topic is truly NOT academic (e.g., just a person's name, random gibberish), return this JSON:
     {{
-        "summary": ["Key point 1", "Key point 2", "Key point 3", ...]
+        "error": true,
+        "message": "The topic '{request.topic}' doesn't seem like an academic topic. Did you mean to enter a subject like 'Photosynthesis' or 'Newton's Laws'?",
+        "suggestion": "Please provide a valid academic topic and relevant study notes."
+    }}
+
+    If the input IS valid (even with minor typos — auto-correct them), provide the output strictly in valid JSON format:
+    {{
+        "summary": ["Key point 1", "Key point 2", ...],
+        "flashcards": [
+            {{"question": "Question 1", "answer": "Answer 1"}},
+            ...
+        ]
     }}
     
     Notes:
@@ -389,6 +501,10 @@ async def summarize_notes(
     
     response_text = await get_ai_response(prompt)
     data = parse_json_response(response_text)
+    
+    # Check for input validation error
+    if data.get("error"):
+        raise HTTPException(status_code=400, detail=data.get("message", "Invalid input") + " 💡 " + data.get("suggestion", ""))
     
     # Save to database
     new_summary = models.NoteSummary(
@@ -401,8 +517,145 @@ async def summarize_notes(
     
     return NotesSummarizerResponse(
         summary=data.get("summary", []),
+        flashcards=data.get("flashcards", []),
         key_points=len(data.get("summary", [])),
         topic=request.topic
+    )
+
+@app.post("/api/doubt-solver", response_model=DoubtSolverResponse)
+async def solve_doubt(
+    request: DoubtSolverRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Solve student doubts with simple and detailed explanations"""
+    
+    prompt = f"""
+    You are an expert academic tutor. Solve the following student doubt.
+    Question: {request.question}
+    Context: {request.context or "No additional context"}
+
+    SPELLING AUTO-CORRECT (VERY IMPORTANT): If the question has minor spelling mistakes, automatically correct them and answer the intended question. Only reject if the input is truly NOT an academic question.
+
+    INPUT VALIDATION: If the input is truly NOT an academic question (e.g., just a person's name, random gibberish), return this JSON:
+    {{
+        "error": true,
+        "message": "This doesn't seem like an academic question. Did you mean to ask something like 'How does gravity work?' or 'Explain recursion'?",
+        "suggestion": "Try entering a clear academic question you need help with."
+    }}
+
+    If the input IS valid (even with minor typos — auto-correct them), provide the output strictly in valid JSON format:
+    {{
+        "explanation": "Detailed professional explanation",
+        "simplified_explanation": "Explain it like I am 5 years old",
+        "examples": ["Example 1", "Example 2"],
+        "topic": "The general academic topic"
+    }}
+    """
+    
+    response_text = await get_ai_response(prompt)
+    data = parse_json_response(response_text)
+    
+    # Check for input validation error
+    if data.get("error"):
+        raise HTTPException(status_code=400, detail=data.get("message", "Invalid input") + " 💡 " + data.get("suggestion", ""))
+    
+    return DoubtSolverResponse(
+        explanation=data.get("explanation", ""),
+        simplified_explanation=data.get("simplified_explanation", ""),
+        examples=data.get("examples", []),
+        topic=data.get("topic", "General")
+    )
+
+@app.post("/api/quiz-generator", response_model=QuizGeneratorResponse)
+async def generate_quiz(
+    request: QuizGeneratorRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Generate multiple choice questions based on a topic or notes"""
+    
+    prompt = f"""
+    Generate 5 high-quality multiple choice questions for the following:
+    Topic/Notes: {request.topic}
+
+    SPELLING AUTO-CORRECT (VERY IMPORTANT): If the topic has minor spelling mistakes (e.g., "Modrn Phisics" instead of "Modern Physics"), automatically correct it and generate the quiz normally. Only reject if the input is truly NOT an academic topic.
+
+    INPUT VALIDATION: If the input is truly NOT academic (e.g., just a person's name, random gibberish), return this JSON:
+    {{
+        "error": true,
+        "message": "This doesn't look like an academic topic or study notes. Did you mean to enter a topic like 'Modern Physics'?",
+        "suggestion": "Try entering a valid subject name or paste your study material."
+    }}
+
+    If the input IS valid (even with minor typos — auto-correct them), provide the output strictly in valid JSON format:
+    {{
+        "questions": [
+            {{
+                "question": "Question text?",
+                "options": ["A", "B", "C", "D"],
+                "correct_answer": "Correct option text",
+                "explanation": "Brief explanation of why the correct answer is right and why the other options are incorrect."
+            }}
+        ],
+        "topic": "Summarized topic name"
+    }}
+    """
+    
+    response_text = await get_ai_response(prompt)
+    data = parse_json_response(response_text)
+    
+    # Check for input validation error
+    if data.get("error"):
+        raise HTTPException(status_code=400, detail=data.get("message", "Invalid input") + " 💡 " + data.get("suggestion", ""))
+    
+    return QuizGeneratorResponse(
+        questions=data.get("questions", []),
+        topic=data.get("topic", "General")
+    )
+
+@app.post("/api/concept-explainer", response_model=ConceptExplainerResponse)
+async def explain_concept(
+    request: ConceptExplainerRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Explain complex concepts in simple language with analogies"""
+    
+    prompt = f"""
+    Explain the following concept like I am 5 years old.
+    Concept: {request.concept}
+
+    SPELLING AUTO-CORRECT (VERY IMPORTANT): If the concept name has minor spelling mistakes (e.g., "Blockchayn" instead of "Blockchain", "Recurson" instead of "Recursion"), automatically correct it and explain the intended concept. Only reject if the input is truly NOT a concept.
+
+    INPUT VALIDATION: If the input is truly NOT a concept (e.g., just a person's name, random gibberish), return this JSON:
+    {{
+        "error": true,
+        "message": "This doesn't look like a concept I can explain. Did you mean something like 'Blockchain', 'Photosynthesis', or 'Recursion'?",
+        "suggestion": "Try entering a real concept, topic, or technical term."
+    }}
+
+    If the input IS valid (even with minor typos — auto-correct them), provide the output strictly in valid JSON format:
+    {{
+        "concept": "{request.concept}",
+        "simple_explanation": "Simplified core idea",
+        "analogy": "A clever real-world analogy",
+        "key_takeaways": ["Point 1", "Point 2", "Point 3"]
+    }}
+    """
+    
+    response_text = await get_ai_response(prompt)
+    data = parse_json_response(response_text)
+    
+    # Check for input validation error
+    if data.get("error"):
+        raise HTTPException(status_code=400, detail=data.get("message", "Invalid input") + " 💡 " + data.get("suggestion", ""))
+    
+    return ConceptExplainerResponse(
+        concept=data.get("concept", ""),
+        simple_explanation=data.get("simple_explanation", ""),
+        analogy=data.get("analogy", ""),
+        key_takeaways=data.get("key_takeaways", [])
     )
 
 @app.get("/api/notes-summarizer/latest", response_model=Optional[NotesSummarizerResponse])
@@ -431,22 +684,35 @@ async def evaluate_answer(
     """Evaluate and save student answer"""
     
     prompt = f"""
-    Evaluate this student's answer.
+    Evaluate this student's answer like a strict but helpful teacher.
     Question: {request.question}
     Student Answer: {request.student_answer}
     Max Marks: {request.max_marks}
 
-    Output strictly in valid JSON format:
+    SPELLING AUTO-CORRECT (VERY IMPORTANT): If the question or answer has minor spelling mistakes, automatically correct them and evaluate the intended content. Only reject if the input is truly NOT academic.
+
+    INPUT VALIDATION: If the question is truly NOT academic (e.g., gibberish, a person's name), return this JSON:
     {{
-        "marks_obtained": integer,
-        "feedback": "Detailed feedback string",
+        "error": true,
+        "message": "The question or answer doesn't look like valid academic content. Please enter a real exam question and your answer attempt.",
+        "suggestion": "Example: Question: 'What is osmosis?' Answer: 'Osmosis is the movement of water...'"
+    }}
+
+    If the input IS valid (even with minor typos — auto-correct them), output strictly in valid JSON format:
+    {{
+        "marks_obtained": integer (out of {request.max_marks}),
+        "feedback": "Teacher-style feedback (e.g., 'Good attempt but you missed...', 'Excellent understanding...')",
         "strengths": ["Strength 1", "Strength 2"],
-        "improvements": ["Improvement 1", "Improvement 2"]
+        "improvements": ["Specific step to improve 1", "Specific step to improve 2"]
     }}
     """
     
     response_text = await get_ai_response(prompt)
     data = parse_json_response(response_text)
+    
+    # Check for input validation error
+    if data.get("error"):
+        raise HTTPException(status_code=400, detail=data.get("message", "Invalid input") + " 💡 " + data.get("suggestion", ""))
     
     marks = data.get("marks_obtained", 0)
     percentage = (marks / request.max_marks) * 100
@@ -507,7 +773,16 @@ async def recommend_careers(
     Skills: {', '.join(request.skills)}
     Education Level: {request.education_level}
 
-    Output strictly in valid JSON format:
+    SPELLING AUTO-CORRECT (VERY IMPORTANT): If the interests or skills have minor spelling mistakes (e.g., "Techmology" instead of "Technology", "Progamming" instead of "Programming"), automatically correct them and proceed normally. Only reject if the input is completely unrelated or gibberish.
+
+    INPUT VALIDATION: If the input is truly NOT valid interests/skills (e.g., just random characters or nonsensical text), return this JSON:
+    {{
+        "error": true,
+        "message": "The interests or skills you entered don't seem valid. Did you mean to enter things like 'Technology, Design' or 'Python, Communication'?",
+        "suggestion": "Try entering your real interests and skills separated by commas."
+    }}
+
+    If the input IS valid (even with minor typos — auto-correct them), output strictly in valid JSON format:
     {{
         "recommended_careers": [
             {{
@@ -524,6 +799,10 @@ async def recommend_careers(
     
     response_text = await get_ai_response(prompt)
     data = parse_json_response(response_text)
+    
+    # Check for input validation error
+    if data.get("error"):
+        raise HTTPException(status_code=400, detail=data.get("message", "Invalid input") + " 💡 " + data.get("suggestion", ""))
     
     # Save to database
     new_rec = models.CareerRecommendation(
@@ -562,39 +841,126 @@ async def generate_resume(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    """Generate and save resume HTML and ATS score"""
+    """Generate and save resume HTML with AI-enhanced content"""
     
     prompt = f"""
-    Generate an HTML resume for:
+    You are an expert resume writer. Enhance the following resume details for a high-end professional.
+    
     Name: {request.name}
     Summary: {request.summary}
-    Education: {[f"{e.degree} from {e.institution}" for e in request.education]}
-    Skills: {', '.join(request.skills)}
-    Projects: {[f"{p.name}: {p.description}" for p in request.projects]}
-
-    Return ONLY a JSON object:
+    Projects: {[{"name": p.name, "description": p.description} for p in request.projects]}
+    
+    Instructions:
+    1. Expand the summary into a substantive, professional 3-sentence profile.
+    2. For each project, write a highly professional, well-written 3-sentence paragraph describing the role and impact.
+    
+    Return JSON strictly matching this structure:
     {{
-        "resume_html": "Professional modern HTML white resume with CSS (no tailwind)",
-        "ats_score": 85,
-        "suggestions": ["Add more keywords", "Quantify results"]
+        "enhanced_summary": "Expanded professional summary...",
+        "enhanced_projects": [
+            {{"name": "Original Project Name", "enhanced_description": "Paragraph description..."}}
+        ],
+        "suggestions": ["Add metrics to Project X", "Include leadership experience"]
     }}
     """
 
     response_text = await get_ai_response(prompt)
     data = parse_json_response(response_text)
     
+    enhanced_projects_dict = {}
+    if isinstance(data.get("enhanced_projects"), list):
+        for p in data.get("enhanced_projects"):
+            if isinstance(p, dict) and 'name' in p and 'enhanced_description' in p:
+                enhanced_projects_dict[p['name']] = p['enhanced_description']
+    
+    projects_html = ""
+    for proj in request.projects:
+        desc = enhanced_projects_dict.get(proj.name, proj.description)
+        projects_html += f"""
+        <div style='margin-bottom: 20px;'>
+            <div style='display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;'>
+                <h3 style='font-size: 16px; font-weight: 700; color: #222; margin: 0;'>{proj.name}</h3>
+                <span style='font-size: 13px; color: #777; font-weight: 600;'>{proj.technologies}</span>
+            </div>
+            <p style='font-size: 14px; line-height: 1.6; color: #444; margin: 0; text-align: justify;'>{desc}</p>
+        </div>
+        """
+
+    education_html = ""
+    for edu in request.education:
+        education_html += f"""
+        <div style='margin-bottom: 15px;'>
+            <div style='display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;'>
+                <h3 style='font-size: 16px; font-weight: 700; color: #222; margin: 0;'>{edu.institution}</h3>
+                <span style='font-size: 13px; color: #777; font-weight: 600;'>{edu.year}</span>
+            </div>
+            <div style='font-size: 14px; font-weight: 600; color: #333; margin-bottom: 2px;'>{edu.degree}</div>
+        </div>
+        """
+        
+    skills_list_html = "".join([f"<li style='margin-bottom: 8px; color: #444; font-size: 14px;'>{skill}</li>" for skill in request.skills])
+
+    enhanced_summary = data.get('enhanced_summary', request.summary)
+
+    final_html = f"""
+    <div style='font-family: &quot;Inter&quot;, -apple-system, sans-serif; max-width: 800px; margin: 0 auto; padding: 50px 50px 70px 50px; background: #ffffff; color: #333; position: relative; min-height: 1050px; box-sizing: border-box;'>
+        
+        <!-- HEADER -->
+        <div style='text-align: center; margin-bottom: 35px;'>
+            <h1 style='font-size: 44px; font-weight: 800; margin: 0 0 5px 0; color: #111; text-transform: uppercase; letter-spacing: 2px;'>{request.name}</h1>
+            <p style='font-size: 18px; color: #555; margin: 0 0 15px 0; font-weight: 500; letter-spacing: 2px; text-transform: uppercase;'>Professional Profile</p>
+            <div style='font-size: 14px; color: #666; display: flex; justify-content: center; align-items: center; gap: 20px;'>
+                <span>{request.email}</span>
+                <span>•</span>
+                <span>{request.phone}</span>
+            </div>
+        </div>
+        
+        <hr style='border: none; border-top: 2px solid #111; margin-bottom: 30px;'/>
+
+        <!-- ABOUT ME -->
+        <div style='margin-bottom: 30px;'>
+            <h2 style='font-size: 16px; font-weight: 700; color: #111; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 15px 0; border-bottom: 1px solid #ddd; padding-bottom: 8px;'>About Me</h2>
+            <p style='font-size: 14px; line-height: 1.7; color: #444; margin: 0; text-align: justify;'>{enhanced_summary}</p>
+        </div>
+
+        <!-- EXPERIENCE / PROJECTS -->
+        <div style='margin-bottom: 30px;'>
+            <h2 style='font-size: 16px; font-weight: 700; color: #111; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 15px 0; border-bottom: 1px solid #ddd; padding-bottom: 8px;'>Experience &amp; Projects</h2>
+            {projects_html}
+        </div>
+
+        <!-- EDUCATION -->
+        <div style='margin-bottom: 30px;'>
+            <h2 style='font-size: 16px; font-weight: 700; color: #111; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 15px 0; border-bottom: 1px solid #ddd; padding-bottom: 8px;'>Education</h2>
+            {education_html}
+        </div>
+
+        <!-- SKILLS -->
+        <div style='margin-bottom: 40px;'>
+            <h2 style='font-size: 16px; font-weight: 700; color: #111; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 15px 0; border-bottom: 1px solid #ddd; padding-bottom: 8px;'>Core Competencies</h2>
+            <ul style='margin: 0; padding: 0 0 0 15px; list-style-type: square; column-count: 3; column-gap: 40px;'>
+                {skills_list_html}
+            </ul>
+        </div>
+        
+        <!-- FOOTER BAR -->
+        <div style='position: absolute; bottom: 0; left: 0; right: 0; height: 30px; background: #222;'></div>
+    </div>
+    """
+    
     # Save to database
     new_resume = models.Resume(
         user_id=current_user.id,
-        resume_html=data.get("resume_html", ""),
-        ats_score=data.get("ats_score", 0)
+        resume_html=final_html,
+        resume_data=json.dumps(request.dict())
     )
     db.add(new_resume)
     db.commit()
 
     return ResumeBuilderResponse(
-        resume_html=data.get("resume_html", ""),
-        ats_score=data.get("ats_score", 0),
+        resume_html=final_html,
+        resume_data=request.dict(),
         suggestions=data.get("suggestions", [])
     )
 
@@ -610,9 +976,42 @@ async def get_latest_resume(
     
     return ResumeBuilderResponse(
         resume_html=resume.resume_html,
-        ats_score=resume.ats_score,
+        resume_data=json.loads(resume.resume_data) if resume.resume_data else None,
         suggestions=[] # suggestions aren't stored individually
     )
+
+@app.get("/api/resume-builder/history")
+async def get_resume_history(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Fetch all resumes for the current user"""
+    resumes = db.query(models.Resume).filter(models.Resume.user_id == current_user.id).order_by(models.Resume.created_at.desc()).all()
+    return [
+        {
+            "id": r.id,
+            "resume_html": r.resume_html,
+            "resume_data": json.loads(r.resume_data) if r.resume_data else None,
+            "created_at": r.created_at.isoformat() if r.created_at else ""
+        }
+        for r in resumes
+    ]
+
+
+@app.delete("/api/resume-builder/{resume_id}")
+async def delete_resume(
+    resume_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Delete a specific resume"""
+    resume = db.query(models.Resume).filter(models.Resume.id == resume_id, models.Resume.user_id == current_user.id).first()
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+    
+    db.delete(resume)
+    db.commit()
+    return {"message": "Resume deleted successfully"}
 
 
 @app.post("/api/mock-interview", response_model=MockInterviewResponse)
@@ -634,9 +1033,18 @@ async def mock_interview(
         User Answer: {request.user_response}
         
         Evaluate the answer (score 0-10) and provide the next technical question.
-        If this was the 5th question, set is_completed to true.
+        If this is the 5th question, set is_completed to true.
 
-        Output strictly in valid JSON format:
+        SPELLING AUTO-CORRECT (VERY IMPORTANT): If the user's answer has minor spelling mistakes, automatically correct them and evaluate the intended content.
+
+        INPUT VALIDATION: If the user's answer is truly complete gibberish or completely unrelated to the technical question, return this JSON:
+        {{
+            "error": true,
+            "message": "I couldn't understand your answer. Could you please provide a technical response to the question?",
+            "suggestion": "Try explaining your thought process clearly."
+        }}
+
+        If the input IS valid (even with minor typos), output strictly in valid JSON format:
         {{
             "score": 8,
             "feedback": "Reasoning for score",
@@ -649,6 +1057,10 @@ async def mock_interview(
         response_text = await get_ai_response(prompt)
         data = parse_json_response(response_text)
         
+        # Check for input validation error
+        if data.get("error"):
+             raise HTTPException(status_code=400, detail=data.get("message", "Invalid input") + " 💡 " + data.get("suggestion", ""))
+
         # If completed, save summary to DB (simplified for demo)
         if data.get("is_completed"):
              history = request.full_history or []
@@ -673,13 +1085,27 @@ async def mock_interview(
         You are an expert technical interviewer. Start a mock interview for the {request.language} programming language. 
         Ask the first fundamental question.
 
-        Output strictly in valid JSON format:
+        SPELLING AUTO-CORRECT (VERY IMPORTANT): If the language has minor spelling mistakes (e.g., "Pyotn" instead of "Python"), automatically correct it and start the interview.
+
+        INPUT VALIDATION: If the language is truly NOT a programming language, return this JSON:
+        {{
+            "error": true,
+            "message": "I don't recognize '{request.language}' as a programming language to interview you on.",
+            "suggestion": "Try entering a language like Python, JavaScript, Java, or C++."
+        }}
+
+        If valid, output strictly in valid JSON format:
         {{
             "next_question": "First question..."
         }}
         """
         response_text = await get_ai_response(prompt)
         data = parse_json_response(response_text)
+
+        # Check for input validation error
+        if data.get("error"):
+             raise HTTPException(status_code=400, detail=data.get("message", "Invalid input") + " 💡 " + data.get("suggestion", ""))
+
         return MockInterviewResponse(next_question=data.get("next_question"))
 
 @app.get("/api/mock-interview/latest", response_model=Optional[MockInterviewResponse])

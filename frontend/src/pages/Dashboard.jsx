@@ -1,111 +1,150 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { GlowingEffect } from '../components/ui/glowing-effect';
 
 function Dashboard() {
+    const navigate = useNavigate();
+    const [clickedCard, setClickedCard] = useState(null);
+
     const features = [
         {
             id: 1,
             title: 'AI Study Planner',
-            description: 'Generate personalized daily study schedules based on your subjects, exam dates, and available time.',
-            icon: '📚',
-            color: 'blue',
-            link: '/study-planner'
+            description: 'Generate personalized study schedules based on your goals and exams.',
+            icon: '📅',
+            link: '/study-planner',
         },
         {
             id: 2,
-            title: 'AI Notes Summarizer',
-            description: 'Transform lengthy notes into concise, exam-focused bullet points instantly.',
-            icon: '📝',
-            color: 'purple',
-            link: '/notes-summarizer'
+            title: 'AI Career Advisor',
+            description: 'Discover your ideal career path based on your skills and interests.',
+            icon: '🎯',
+            link: '/career-recommendation',
         },
         {
             id: 3,
             title: 'AI Answer Evaluator',
-            description: 'Get instant feedback on your exam answers with marks and improvement suggestions.',
-            icon: '✅',
-            color: 'teal',
-            link: '/answer-evaluator'
+            description: 'Get instant feedback and marks on your written answers.',
+            icon: '💯',
+            link: '/answer-evaluator',
         },
         {
             id: 4,
-            title: 'AI Career Advisor',
-            description: 'Discover suitable career paths and skills based on your interests and education.',
-            icon: '🎯',
-            color: 'orange',
-            link: '/career-recommendation'
+            title: 'AI Resume Builder',
+            description: 'Craft ATS-friendly resumes with smart AI suggestions.',
+            icon: '📄',
+            link: '/resume-builder',
         },
         {
             id: 5,
-            title: 'AI Resume Builder',
-            description: 'Create professional, ATS-friendly resumes with live preview and optimization tips.',
-            icon: '📄',
-            color: 'sunset',
-            link: '/resume-builder'
-        },
-        {
-            id: 6,
             title: 'AI Mock Interview',
-            description: 'Practice technical interviews with voice-based AI interaction and instant feedback.',
+            description: 'Practice with an AI interviewer and receive performance analysis.',
             icon: '🎤',
-            color: 'purple',
-            link: '/mock-interview'
+            link: '/mock-interview',
         }
     ];
 
+    const handleCardClick = useCallback((card) => {
+        setClickedCard(card.id);
+    }, []);
+
+    const handleAnimationComplete = useCallback((link) => {
+        navigate(link);
+    }, [navigate]);
+
     return (
-        <div className="container section fade-in">
-            <div className="hero">
-                <h1 className="text-gradient">
-                    EduMate AI – Smart Assistant for Students
-                </h1>
-                <p className="hero-subtitle">
-                    Your AI-powered companion for exam preparation, career planning, and professional growth.
-                    Built by students, for students. 🚀
-                </p>
-            </div>
+        <div className="fade-in" style={{ padding: '0 0.5rem' }}>
+            <h1 className="glow-text mb-1">Your Dashboard</h1>
+            <p className="mb-3" style={{ fontSize: '1.1rem' }}>Access your top AI tools below to accelerate your learning and career.</p>
 
-            <div className="text-center mb-3">
-                <h2>Explore Our AI-Powered Tools</h2>
-                <p style={{ maxWidth: '700px', margin: '0 auto', fontSize: '1.1rem' }}>
-                    Choose any feature below to experience intelligent assistance tailored for your academic and career success.
-                </p>
-            </div>
-
-            <div className="feature-grid">
-                {features.map((feature, index) => (
-                    <Link
-                        to={feature.link}
-                        key={feature.id}
-                        className={`feature-card ${feature.color}`}
-                        style={{ animationDelay: `${index * 0.1}s` }}
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gridTemplateRows: 'auto',
+                gap: '1rem',
+            }}>
+                {features.map((card) => (
+                    <div
+                        key={card.id}
+                        onClick={() => handleCardClick(card)}
+                        style={{
+                            cursor: 'pointer',
+                            ...(card.id === 5 ? { gridColumn: '1 / -1' } : {}),
+                        }}
                     >
-                        <div className="feature-icon">{feature.icon}</div>
-                        <h3 className="feature-title">{feature.title}</h3>
-                        <p className="feature-description">{feature.description}</p>
-                        <button className="btn btn-primary mt-2" style={{ width: '100%' }}>
-                            Try Now →
-                        </button>
-                    </Link>
+                        <div style={{
+                            position: 'relative',
+                            height: '100%',
+                            borderRadius: '1.25rem',
+                            border: '0.75px solid var(--color-border)',
+                            padding: '0.5rem',
+                        }}>
+                            <GlowingEffect
+                                spread={30}
+                                glow={true}
+                                disabled={false}
+                                proximity={16}
+                                inactiveZone={0.01}
+                                borderWidth={1}
+                                onClickAnimate={clickedCard === card.id}
+                                onAnimationComplete={() => handleAnimationComplete(card.link)}
+                            />
+                            <div className="glass-card" style={{
+                                position: 'relative',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'flex-end',
+                                gap: '0.75rem',
+                                overflow: 'hidden',
+                                borderRadius: '0.75rem',
+                                padding: '1.5rem',
+                                height: '100%',
+                                minHeight: '12rem',
+                                transition: 'transform 0.2s ease',
+                            }}>
+                                <div style={{
+                                    width: 'fit-content',
+                                    borderRadius: '0.5rem',
+                                    border: '0.75px solid rgba(255, 255, 255, 0.2)',
+                                    padding: '0.5rem',
+                                    fontSize: '1.5rem',
+                                    background: 'rgba(255, 255, 255, 0.1)',
+                                    color: 'white',
+                                    boxShadow: 'inset 0 0 10px rgba(255, 255, 255, 0.05)',
+                                }}>
+                                    {card.icon}
+                                </div>
+                                <div>
+                                    <h3 style={{
+                                        fontSize: '1.25rem',
+                                        fontWeight: 600,
+                                        letterSpacing: '-0.04em',
+                                        color: '#ffffff',
+                                        marginBottom: '0.5rem',
+                                        textShadow: '0 0 10px rgba(255, 255, 255, 0.4)'
+                                    }}>
+                                        {card.title}
+                                    </h3>
+                                    <p style={{
+                                        fontSize: '0.9rem',
+                                        lineHeight: '1.4',
+                                        color: 'rgba(255, 255, 255, 0.7)',
+                                        margin: 0,
+                                    }}>
+                                        {card.description}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 ))}
             </div>
 
-            <div className="card mt-3" style={{ background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)' }}>
-                <h3>✨ Why EduMate AI?</h3>
-                <div className="grid-3 mt-2">
-                    <div>
-                        <h4>🤖 AI-Powered</h4>
-                        <p>Intelligent algorithms provide personalized recommendations and insights</p>
-                    </div>
-                    <div>
-                        <h4>⚡ Fast & Easy</h4>
-                        <p>Simple forms instead of complex prompts - just fill and generate</p>
-                    </div>
-                    <div>
-                        <h4>🎨 Beautiful UI</h4>
-                        <p>Modern, colorful design that makes learning and planning enjoyable</p>
-                    </div>
-                </div>
+            <div className="card glass-card glass-card mt-3 glass-card" style={{ background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)' }}>
+                <h3 className="glow-text">💡 Tip</h3>
+                <p>
+                    You can access all other tools, like the Concept Explainer and Notes Summarizer, from the sidebar on the left.
+                </p>
             </div>
         </div>
     );

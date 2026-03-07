@@ -1,13 +1,13 @@
 @echo off
 echo ===================================================
-echo Starting EduMate AI Demo Mode...
+echo Starting StudySaathi Demo Mode...
 echo ===================================================
 
 echo Starting Backend (Real AI Mode - GPT-4o)...
-start "EduMate Backend" cmd /k "cd backend & call venv\Scripts\activate & uvicorn main:app --reload --host 0.0.0.0"
+start "StudySaathi Backend" cmd /k "cd backend & .\venv\Scripts\python.exe -m uvicorn main:app --reload --host 0.0.0.0"
 
 echo Starting Frontend...
-start "EduMate Frontend" cmd /k "cd frontend & npm run dev"
+start "StudySaathi Frontend" cmd /k "cd frontend & npm run dev"
 
 echo.
 echo ===================================================

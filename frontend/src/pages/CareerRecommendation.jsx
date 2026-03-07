@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { API_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
 
 // const API_URL = 'http://127.0.0.1:8000';
 
 function CareerRecommendation() {
+    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         interests: '',
         skills: '',
@@ -65,11 +66,21 @@ function CareerRecommendation() {
         'Good': '#f59e0b'
     };
 
+    const skillColors = [
+        { bg: 'rgba(59, 130, 246, 0.15)', text: '#3b82f6', border: 'rgba(59, 130, 246, 0.3)' }, // Blue
+        { bg: 'rgba(16, 185, 129, 0.15)', text: '#10b981', border: 'rgba(16, 185, 129, 0.3)' }, // Emerald
+        { bg: 'rgba(139, 92, 246, 0.15)', text: '#8b5cf6', border: 'rgba(139, 92, 246, 0.3)' }, // Violet
+        { bg: 'rgba(245, 158, 11, 0.15)', text: '#f59e0b', border: 'rgba(245, 158, 11, 0.3)' }, // Amber
+        { bg: 'rgba(236, 72, 153, 0.15)', text: '#ec4899', border: 'rgba(236, 72, 153, 0.3)' }, // Pink
+        { bg: 'rgba(14, 165, 233, 0.15)', text: '#0ea5e9', border: 'rgba(14, 165, 233, 0.3)' }, // Sky
+        { bg: 'rgba(244, 63, 94, 0.15)', text: '#f43f5e', border: 'rgba(244, 63, 94, 0.3)' }  // Rose
+    ];
+
     return (
         <div className="container section fade-in">
-            <Link to="/" className="btn btn-secondary mb-2">← Back to Dashboard</Link>
+            <button onClick={() => navigate(-1)} className="btn btn-secondary mb-2">← Go Back</button>
 
-            <div className="card" style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <div className="card glass-card glass-card glass-card" style={{ maxWidth: '800px', margin: '0 auto' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
                     <div className="feature-icon" style={{ background: 'var(--gradient-orange)' }}>🎯</div>
                     <div>
@@ -137,96 +148,79 @@ function CareerRecommendation() {
             )}
 
             {result && (
-                <div style={{ maxWidth: '900px', margin: '2rem auto' }}>
-                    <div className="result-card">
-                        <div className="result-header">
-                            <h2 style={{ margin: 0 }}>Recommended Career Paths</h2>
-                            <span className="result-badge">AI Generated</span>
+                <div className="card glass-card glass-card glass-card" style={{ maxWidth: '800px', margin: '0 auto' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+                        <div className="feature-icon" style={{ background: 'var(--gradient-orange)' }}>🎯</div>
+                        <div>
+                            <h2 className="glow-text" style={{ margin: 0 }}>AI Career Advisor</h2>
+                            <p style={{ margin: 0 }}>Design your future with data-driven career paths</p>
                         </div>
+                    </div>
 
-                        <div className="grid-2">
-                            {result.recommended_careers.map((career, index) => (
-                                <div
-                                    key={index}
-                                    className="card"
-                                    style={{
-                                        background: `linear-gradient(135deg, ${growthColors[career.growth_potential]}10 0%, ${growthColors[career.growth_potential]}05 100%)`,
-                                        border: `2px solid ${growthColors[career.growth_potential]}40`
-                                    }}
-                                >
-                                    <div style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'start',
-                                        marginBottom: '1rem'
+                    <div className="grid-2">
+                        {result.recommended_careers.map((career, index) => (
+                            <div
+                                key={index}
+                                className="card glass-card glass-card glass-card"
+                                style={{
+                                    background: `linear-gradient(135deg, ${growthColors[career.growth_potential]}10 0%, ${growthColors[career.growth_potential]}05 100%)`,
+                                    border: `2px solid ${growthColors[career.growth_potential]}40`
+                                }}
+                            >
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'start',
+                                    marginBottom: '1rem'
+                                }}>
+                                    <h3 style={{ margin: 0, color: growthColors[career.growth_potential] }}>
+                                        {career.title}
+                                    </h3>
+                                    <span style={{
+                                        background: growthColors[career.growth_potential],
+                                        color: 'white',
+                                        padding: '0.25rem 0.75rem',
+                                        borderRadius: '20px',
+                                        fontSize: '0.8rem',
+                                        fontWeight: '600'
                                     }}>
-                                        <h3 style={{ margin: 0, color: growthColors[career.growth_potential] }}>
-                                            {career.title}
-                                        </h3>
-                                        <span style={{
-                                            background: growthColors[career.growth_potential],
-                                            color: 'white',
-                                            padding: '0.25rem 0.75rem',
-                                            borderRadius: '20px',
-                                            fontSize: '0.8rem',
-                                            fontWeight: '600'
-                                        }}>
-                                            {career.growth_potential}
-                                        </span>
-                                    </div>
+                                        {career.growth_potential}
+                                    </span>
+                                </div>
 
-                                    <p style={{ color: 'var(--color-text)' }}>{career.description}</p>
+                                <p style={{ color: 'var(--color-text)' }}>{career.description}</p>
 
-                                    <div style={{ marginTop: '1rem' }}>
-                                        <strong style={{ color: 'var(--color-text)' }}>💰 Salary Range:</strong>
-                                        <p style={{ margin: '0.25rem 0' }}>{career.salary_range}</p>
-                                    </div>
+                                <div style={{ marginTop: '1rem' }}>
+                                    <strong style={{ color: 'var(--color-text)' }}>💰 Salary Range:</strong>
+                                    <p style={{ margin: '0.25rem 0' }}>{career.salary_range}</p>
+                                </div>
 
-                                    <div style={{ marginTop: '1rem' }}>
-                                        <strong style={{ color: 'var(--color-text)' }}>Required Skills:</strong>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
-                                            {career.required_skills.map((skill, idx) => (
+                                <div style={{ marginTop: '1rem' }}>
+                                    <strong style={{ color: 'var(--color-text)' }}>Required Skills:</strong>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                        {career.required_skills.map((skill, idx) => {
+                                            const colorTheme = skillColors[idx % skillColors.length];
+                                            return (
                                                 <span
                                                     key={idx}
                                                     style={{
-                                                        background: 'white',
+                                                        background: colorTheme.bg,
                                                         padding: '0.25rem 0.75rem',
                                                         borderRadius: '20px',
                                                         fontSize: '0.85rem',
-                                                        color: 'var(--color-text)',
-                                                        border: '1px solid var(--color-border)'
+                                                        color: colorTheme.text,
+                                                        border: `1px solid ${colorTheme.border}`,
+                                                        fontWeight: '500'
                                                     }}
                                                 >
                                                     {skill}
                                                 </span>
-                                            ))}
-                                        </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Skills to Develop */}
-                    <div className="result-card">
-                        <h3 style={{ color: 'var(--color-primary)' }}>📚 Skills You Should Develop</h3>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '1rem' }}>
-                            {result.skills_to_develop.map((skill, index) => (
-                                <div
-                                    key={index}
-                                    style={{
-                                        background: 'var(--gradient-orange)',
-                                        color: 'white',
-                                        padding: '0.75rem 1.5rem',
-                                        borderRadius: 'var(--radius-md)',
-                                        fontWeight: '600',
-                                        boxShadow: 'var(--shadow-md)'
-                                    }}
-                                >
-                                    {skill}
-                                </div>
-                            ))}
-                        </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}

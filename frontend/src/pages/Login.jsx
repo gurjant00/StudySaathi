@@ -27,11 +27,11 @@ function Login() {
 
     return (
         <div className="container section fade-in">
-            <div className="card" style={{ maxWidth: '450px', margin: '2rem auto', padding: '2.5rem' }}>
+            <div className="card glass-card glass-card glass-card" style={{ maxWidth: '450px', margin: '2rem auto', padding: '2.5rem' }}>
                 <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
                     <div className="feature-icon" style={{ background: 'var(--gradient-blue)', margin: '0 auto 1rem', fontSize: '2.5rem', width: '70px', height: '70px' }}>🔐</div>
                     <h2 style={{ margin: 0 }}>Welcome Back</h2>
-                    <p style={{ color: 'var(--color-text-secondary)', marginTop: '0.5rem' }}>Log in to your EduMate AI account</p>
+                    <p style={{ color: 'var(--color-text-secondary)', marginTop: '0.5rem' }}>Log in to your StudySaathi account</p>
                 </div>
 
                 <form onSubmit={handleSubmit}>

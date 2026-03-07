@@ -1,6 +1,6 @@
-# Windows Setup Guide for EduMate AI
+# Windows Setup Guide for StudySaathi
 
-This guide helps you set up the EduMate AI platform on Windows, addressing common issues.
+This guide helps you set up the StudySaathi platform on Windows, addressing common issues.
 
 ## 🔧 Prerequisites
 
@@ -49,8 +49,8 @@ pydantic-core requires Rust and Cargo to compile
 1. Install [Miniconda](https://docs.conda.io/en/latest/miniconda.html)
 2. Create environment:
 ```bash
-conda create -n edumate python=3.10
-conda activate edumate
+conda create -n studysaathi python=3.10
+conda activate studysaathi
 ```
 3. Install dependencies:
 ```bash
@@ -78,8 +78,8 @@ pip install fastapi==0.109.0 uvicorn==0.27.0 pydantic==2.5.3 python-multipart==0
 cd backend
 
 # Create and activate environment
-conda create -n edumate python=3.10 -y
-conda activate edumate
+conda create -n studysaathi python=3.10 -y
+conda activate studysaathi
 
 # Install dependencies
 conda install -c conda-forge fastapi uvicorn pydantic python-multipart -y
@@ -163,7 +163,7 @@ Once setup is complete, use these commands to run the application:
 ### Terminal 1 (Backend):
 ```bash
 cd backend
-conda activate edumate  # or venv\Scripts\activate
+conda activate studysaathi  # or venv\Scripts\activate
 python -m uvicorn main:app --reload
 ```
 

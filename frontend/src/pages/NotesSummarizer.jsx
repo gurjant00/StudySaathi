@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { API_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
 
 // const API_URL = 'http://127.0.0.1:8000';
 
 function NotesSummarizer() {
+    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         notes: '',
         topic: ''
@@ -53,9 +54,9 @@ function NotesSummarizer() {
 
     return (
         <div className="container section fade-in">
-            <Link to="/" className="btn btn-secondary mb-2">← Back to Dashboard</Link>
+            <button onClick={() => navigate(-1)} className="btn btn-secondary mb-2">← Go Back</button>
 
-            <div className="card" style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <div className="card glass-card glass-card glass-card" style={{ maxWidth: '800px', margin: '0 auto' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
                     <div className="feature-icon" style={{ background: 'var(--gradient-purple)' }}>📝</div>
                     <div>
@@ -108,59 +109,75 @@ function NotesSummarizer() {
             )}
 
             {result && (
-                <div className="result-card" style={{ maxWidth: '800px', margin: '2rem auto' }}>
-                    <div className="result-header">
-                        <h2 style={{ margin: 0 }}>Summary: {result.topic}</h2>
-                        <span className="result-badge">AI Generated</span>
+                <div className="animate-fadeIn" style={{ maxWidth: '800px', margin: '2rem auto' }}>
+                    <div className="result-card glass-card mb-3">
+                        <div className="result-header">
+                            <h2 className="glow-text" style={{ margin: 0 }}>Summary: {result.topic}</h2>
+                            <span className="result-badge">AI Insights</span>
+                        </div>
+
+                        <div style={{
+                            background: 'var(--gradient-purple)',
+                            color: 'white',
+                            padding: '0.75rem 1rem',
+                            borderRadius: '0.5rem',
+                            marginBottom: '1.5rem',
+                            display: 'inline-block',
+                            boxShadow: 'var(--glow-primary)'
+                        }}>
+                            📌 {result.key_points} Key Points Identified
+                        </div>
+
+                        <div style={{ background: 'rgba(168, 85, 247, 0.05)', padding: '1.5rem', borderRadius: '1rem' }}>
+                            <h3 className="mb-1">Key Points:</h3>
+                            <ul style={{ listStyle: 'none', padding: 0 }}>
+                                {result.summary.map((point, index) => (
+                                    <li
+                                        key={index}
+                                        className="glass-card"
+                                        style={{
+                                            marginBottom: '1rem',
+                                            padding: '1rem',
+                                            borderRadius: '0.5rem',
+                                            display: 'flex',
+                                            gap: '0.75rem',
+                                            alignItems: 'start'
+                                        }}
+                                    >
+                                        <span style={{
+                                            background: 'var(--gradient-purple)',
+                                            color: 'white',
+                                            width: '28px',
+                                            height: '28px',
+                                            borderRadius: '50%',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontWeight: 'bold',
+                                            flexShrink: 0
+                                        }}>
+                                            {index + 1}
+                                        </span>
+                                        <span style={{ color: 'var(--color-text)' }}>{point}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
                     </div>
 
-                    <div style={{
-                        background: 'var(--gradient-purple)',
-                        color: 'white',
-                        padding: '0.75rem 1rem',
-                        borderRadius: '0.5rem',
-                        marginBottom: '1.5rem',
-                        display: 'inline-block'
-                    }}>
-                        📌 {result.key_points} Key Points Identified
-                    </div>
-
-                    <div style={{ background: 'rgba(168, 85, 247, 0.05)', padding: '1.5rem', borderRadius: '1rem' }}>
-                        <h3>Key Points:</h3>
-                        <ul style={{ listStyle: 'none', padding: 0 }}>
-                            {result.summary.map((point, index) => (
-                                <li
-                                    key={index}
-                                    style={{
-                                        marginBottom: '1rem',
-                                        padding: '1rem',
-                                        background: 'white',
-                                        borderRadius: '0.5rem',
-                                        boxShadow: 'var(--shadow-sm)',
-                                        display: 'flex',
-                                        gap: '0.75rem',
-                                        alignItems: 'start'
-                                    }}
-                                >
-                                    <span style={{
-                                        background: 'var(--gradient-purple)',
-                                        color: 'white',
-                                        width: '28px',
-                                        height: '28px',
-                                        borderRadius: '50%',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontWeight: 'bold',
-                                        flexShrink: 0
-                                    }}>
-                                        {index + 1}
-                                    </span>
-                                    <span style={{ color: 'var(--color-text)' }}>{point}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
+                    {result.flashcards && result.flashcards.length > 0 && (
+                        <div className="mt-3">
+                            <h2 className="glow-text text-center mb-2">🃏 AI Flashcards</h2>
+                            <div className="grid grid-2">
+                                {result.flashcards.map((card, index) => (
+                                    <div key={index} className="card glass-card glass-card glass-card" style={{ borderLeft: '5px solid var(--color-accent-purple)' }}>
+                                        <h4 style={{ color: 'var(--color-accent-purple)', marginBottom: '0.5rem' }}>Q: {card.question}</h4>
+                                        <p style={{ color: 'var(--color-text)', fontStyle: 'italic', margin: 0 }}>A: {card.answer}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

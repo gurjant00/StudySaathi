@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { API_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 
 function ResumeBuilder() {
+    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -17,7 +20,9 @@ function ResumeBuilder() {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
     const [error, setError] = useState('');
+    const [resumeHistory, setResumeHistory] = useState([]);
     const { token } = useAuth();
+    const resumeRef = React.useRef(null);
 
     const authHeaders = {
         headers: { Authorization: `Bearer ${token}` }
@@ -25,6 +30,7 @@ function ResumeBuilder() {
 
     React.useEffect(() => {
         fetchLatestResume();
+        fetchHistory();
     }, []);
 
     const fetchLatestResume = async () => {
@@ -38,10 +44,41 @@ function ResumeBuilder() {
         }
     };
 
+    const fetchHistory = async () => {
+        try {
+            const response = await axios.get(`${API_URL}/api/resume-builder/history`, authHeaders);
+            setResumeHistory(response.data || []);
+        } catch (err) {
+            console.error("Failed to fetch resume history:", err);
+        }
+    };
+
     const handleEducationChange = (index, field, value) => {
         const newEducation = [...formData.education];
         newEducation[index][field] = value;
         setFormData({ ...formData, education: newEducation });
+    };
+
+    const handleEdit = () => {
+        if (result && result.resume_data) {
+            setFormData(result.resume_data);
+        }
+        setResult(null);
+        setError('');
+    };
+
+    const handleCreateNew = () => {
+        setFormData({
+            name: '',
+            email: '',
+            phone: '',
+            summary: '',
+            education: [{ degree: '', institution: '', year: '', grade: '' }],
+            skills: '',
+            projects: [{ name: '', description: '', technologies: '' }]
+        });
+        setResult(null);
+        setError('');
     };
 
     const addEducation = () => {
@@ -64,11 +101,154 @@ function ResumeBuilder() {
         });
     };
 
-    const handleDownload = () => {
-        const originalTitle = document.title;
-        document.title = `${formData.name}_Resume`;
-        window.print();
-        document.title = originalTitle;
+    const handleDownloadPDF = async () => {
+        const element = resumeRef.current;
+        if (!element) {
+            console.error("Resume preview element not found via Ref");
+            return;
+        }
+
+        setLoading(true);
+        setError('');
+        try {
+            console.log("Starting high-fidelity PDF capture...");
+
+            // 1. Temporarily append an exact 800px clone off-screen
+            // This guarantees the resume aspect ratio is perfect regardless of the user's screen size.
+            const captureContainer = document.createElement('div');
+            captureContainer.style.position = 'absolute';
+            captureContainer.style.left = '-9999px';
+            captureContainer.style.top = '-9999px';
+            captureContainer.style.width = '800px';
+
+            const clone = element.cloneNode(true);
+            clone.style.width = '800px';
+            clone.style.maxWidth = '800px';
+            clone.style.margin = '0';
+            clone.style.boxShadow = 'none';
+            clone.style.border = 'none';
+            clone.style.borderRadius = '0';
+
+            captureContainer.appendChild(clone);
+            document.body.appendChild(captureContainer);
+
+            // 2. High-fidelity capture settings on the fixed clone
+            const canvas = await html2canvas(clone, {
+                scale: 3, // Increased scale for pristine text quality
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                logging: false,
+                imageTimeout: 0,
+                width: 800,
+                windowWidth: 800
+            });
+
+            // 3. Clean up the temporary clone
+            document.body.removeChild(captureContainer);
+
+            console.log("Canvas generated, creating PDF...");
+            const imgData = canvas.toDataURL('image/jpeg', 1.0);
+
+            // 4. PDF is A4 portrait (210mm width)
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+            pdf.save(`${formData.name.replace(/\s+/g, '_') || 'Resume'}.pdf`);
+            console.log("PDF saved successfully.");
+        } catch (err) {
+            console.error("High-fidelity PDF generation failed:", err);
+            setError("The direct download had an issue. Please use '🖨️ Print Resume' and select 'Save as PDF' for a perfect result.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeleteResume = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this resume?")) return;
+        try {
+            await axios.delete(`${API_URL}/api/resume-builder/${id}`, authHeaders);
+            fetchHistory();
+        } catch (err) {
+            console.error("Failed to delete resume:", err);
+            setError("Failed to delete resume.");
+        }
+    };
+
+    const handleViewResume = (item) => {
+        setResult({
+            resume_html: item.resume_html,
+            resume_data: item.resume_data,
+            suggestions: []
+        });
+        if (item.resume_data) {
+            setFormData(item.resume_data);
+        }
+    };
+
+    const handlePrint = () => {
+        if (!result || !result.resume_html) return;
+
+        const printWindow = window.open('', '_blank', 'width=850,height=1100');
+        if (!printWindow) {
+            alert("Please allow popups to print or download your resume.");
+            return;
+        }
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${formData.name || 'Resume'}_Resume</title>
+                <style>
+                    body {
+                        font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+                        margin: 0;
+                        padding: 20mm;
+                        background: white;
+                        color: black;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    * {
+                        color: black !important;
+                    }
+                    @media print {
+                        body { padding: 0; margin: 0; }
+                        @page { margin: 1cm; size: A4 portrait; }
+                    }
+                </style>
+            </head>
+            <body>
+                ${result.resume_html}
+                <script>
+                    window.onload = function() {
+                        setTimeout(function() {
+                            window.print();
+                            window.close();
+                        }, 500);
+                    };
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
+    const loadExampleData = () => {
+        setFormData({
+            name: 'Alex Johnson',
+            email: 'alex.johnson@example.com',
+            phone: '+1 (555) 123-4567',
+            summary: 'Passionate Software Engineer with 3+ years of experience building scalable web applications. Strong focus on React, Node.js, and cloud technologies. Eager to solve complex problems and deliver high-quality, user-centric software.',
+            education: [{ degree: "Bachelor's Degree", institution: 'Tech University', year: '2018-2022', grade: '3.8/4.0 GPA' }],
+            skills: 'JavaScript, TypeScript, React, Node.js, Python, SQL, Git, AWS',
+            projects: [
+                { name: 'E-commerce Platform Refactoring', description: 'Migrated legacy PHP monolith to a modern React/Node.js microservices architecture, improving load times by 40%.', technologies: 'React, Node.js, Express, MongoDB' },
+                { name: 'AI Task Manager', description: 'Built an AI-powered to-do app that categorizes and prioritizes tasks automatically using NLP.', technologies: 'Python, FastAPI, React, OpenAI API' }
+            ]
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -85,6 +265,7 @@ function ResumeBuilder() {
                 skills
             }, authHeaders);
             setResult(response.data);
+            fetchHistory();
         } catch (err) {
             setError(err.response?.data?.detail || 'Failed to build resume. Make sure the backend is running.');
         } finally {
@@ -94,17 +275,23 @@ function ResumeBuilder() {
 
     return (
         <div className="container section fade-in">
-            <Link to="/" className="btn btn-secondary mb-2 no-print">← Back to Dashboard</Link>
+            <button onClick={() => navigate(-1)} className="btn btn-secondary mb-2 no-print">← Go Back</button>
 
-            <div className="grid resume-layout" style={{ gridTemplateColumns: result ? '1fr 1fr' : '1fr', gap: '2rem' }}>
+            <div>
                 {/* Form Section */}
-                <div className="card no-print">
+                <div className="card glass-card glass-card glass-card no-print" style={{ display: result ? 'none' : 'block' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
                         <div className="feature-icon" style={{ background: 'var(--gradient-sunset)' }}>📄</div>
                         <div>
-                            <h2 style={{ margin: 0 }}>AI Resume Builder</h2>
-                            <p style={{ margin: 0 }}>Create ATS-friendly resume</p>
+                            <h2 className="glow-text" style={{ margin: 0 }}>AI Resume Builder</h2>
+                            <p style={{ margin: 0 }}>Craft a high-impact, ATS-friendly resume</p>
                         </div>
+                    </div>
+
+                    <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+                        <button type="button" className="btn btn-secondary" onClick={loadExampleData} style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}>
+                            ✨ Load Example Data
+                        </button>
                     </div>
 
                     <form onSubmit={handleSubmit}>
@@ -170,13 +357,22 @@ function ResumeBuilder() {
                                 <div className="grid-2">
                                     <div className="form-group">
                                         <label className="form-label">Degree</label>
-                                        <input
-                                            type="text"
+                                        <select
                                             className="form-input"
                                             value={edu.degree}
                                             onChange={(e) => handleEducationChange(index, 'degree', e.target.value)}
                                             required
-                                        />
+                                            style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-text)' }}
+                                        >
+                                            <option value="" disabled>Select Degree</option>
+                                            <option value="High School Diploma">High School Diploma</option>
+                                            <option value="Associate Degree">Associate Degree</option>
+                                            <option value="Bachelor's Degree">Bachelor's Degree</option>
+                                            <option value="Master's Degree">Master's Degree</option>
+                                            <option value="Ph.D. / Doctorate">Ph.D. / Doctorate</option>
+                                            <option value="Bootcamp/Certificate">Bootcamp/Certificate</option>
+                                            <option value="Other">Other</option>
+                                        </select>
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label">Institution</label>
@@ -292,61 +488,74 @@ function ResumeBuilder() {
                 {/* Preview Section */}
                 {result && (
                     <div className="fade-in print-container">
-                        <div className="result-card no-shadow-print" style={{ position: 'sticky', top: '100px' }}>
-                            <div className="result-header no-print">
-                                <h2 style={{ margin: 0 }}>Resume Preview</h2>
-                                <span className="result-badge">AI Generated</span>
+                        <div className="result-card no-shadow-print">
+                            <div className="result-header no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div>
+                                    <h2 style={{ margin: 0 }}>Resume Preview</h2>
+                                    <span className="result-badge">AI Generated</span>
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.8rem' }}>
+                                    <button
+                                        className="btn btn-secondary"
+                                        onClick={handleEdit}
+                                        style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}
+                                    >✏️ Edit Resume</button>
+                                    <button
+                                        className="btn btn-primary"
+                                        onClick={handleCreateNew}
+                                        style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}
+                                    >✨ Create New</button>
+                                </div>
                             </div>
 
-                            {/* ATS Score */}
-                            <div className="no-print" style={{
-                                background: 'var(--gradient-sunset)',
-                                color: 'white',
-                                padding: '1rem',
-                                borderRadius: 'var(--radius-md)',
-                                textAlign: 'center',
-                                marginBottom: '1.5rem'
-                            }}>
-                                <div style={{ fontSize: '0.9rem', marginBottom: '0.25rem' }}>ATS Compatibility Score</div>
-                                <div style={{ fontSize: '2.5rem', fontWeight: '800' }}>{result.ats_score}%</div>
-                            </div>
 
                             {/* Resume HTML */}
                             <div
+                                ref={resumeRef}
                                 style={{
                                     background: 'white',
                                     color: 'black',
-                                    padding: '2rem',
                                     borderRadius: 'var(--radius-sm)',
-                                    border: '1px solid #ccc',
-                                    minHeight: '400px',
-                                    fontSize: '0.9rem',
-                                    lineHeight: '1.6',
-                                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                                    border: '1px solid #ddd',
+                                    boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+                                    overflow: 'hidden'
                                 }}
                                 className="resume-preview printable-content"
                                 dangerouslySetInnerHTML={{ __html: result.resume_html }}
                             />
 
                             {/* Suggestions */}
-                            <div className="no-print" style={{ marginTop: '1.5rem' }}>
-                                <h3 style={{ color: 'var(--color-primary)' }}>💡 Suggestions</h3>
-                                <ul style={{ paddingLeft: '1.5rem' }}>
-                                    {result.suggestions.map((suggestion, index) => (
-                                        <li key={index} style={{ marginBottom: '0.5rem', color: 'var(--color-text)' }}>
-                                            {suggestion}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
+                            {result.suggestions && result.suggestions.length > 0 && (
+                                <div className="no-print" style={{ marginTop: '1.5rem' }}>
+                                    <h3 style={{ color: 'var(--color-primary)' }}>💡 Suggestions</h3>
+                                    <ul style={{ paddingLeft: '1.5rem' }}>
+                                        {result.suggestions.map((suggestion, index) => (
+                                            <li key={index} style={{ marginBottom: '0.5rem', color: 'var(--color-text)' }}>
+                                                {suggestion}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
 
-                            <button
-                                className="btn btn-primary btn-large no-print"
-                                style={{ width: '100%', marginTop: '1rem' }}
-                                onClick={handleDownload}
-                            >
-                                📥 Download as PDF (Print)
-                            </button>
+                            {/* Action Buttons */}
+                            <div className="no-print" style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+                                <button
+                                    className="btn btn-primary"
+                                    style={{ flex: 1 }}
+                                    onClick={handleDownloadPDF}
+                                    disabled={loading}
+                                >
+                                    {loading ? 'Generating PDF...' : '📥 Download PDF'}
+                                </button>
+                                <button
+                                    className="btn btn-secondary"
+                                    style={{ flex: 1 }}
+                                    onClick={handlePrint}
+                                >
+                                    🖨️ Print Resume
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -355,6 +564,58 @@ function ResumeBuilder() {
             {loading && !result && (
                 <div className="loading-container no-print">
                     <div className="loading"></div>
+                </div>
+            )}
+
+            {/* Resume History */}
+            {resumeHistory.length > 0 && (
+                <div className="card glass-card glass-card glass-card no-print" style={{ marginTop: '2rem' }}>
+                    <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        📋 Resume History
+                        <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', fontWeight: 'normal' }}>
+                            ({resumeHistory.length} resume{resumeHistory.length !== 1 ? 's' : ''})
+                        </span>
+                    </h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {resumeHistory.map((item) => (
+                            <div key={item.id} style={{
+                                background: 'var(--color-bg)',
+                                padding: '1rem',
+                                borderRadius: 'var(--radius-sm)',
+                                border: '1px solid var(--color-border)',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                flexWrap: 'wrap',
+                                gap: '0.5rem'
+                            }}>
+                                <div>
+                                    <div style={{ fontWeight: '600', fontSize: '0.95rem' }}>
+                                        Resume #{item.id}
+                                    </div>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                                        {new Date(item.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button
+                                        className="btn btn-secondary"
+                                        style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}
+                                        onClick={() => handleViewResume(item)}
+                                    >
+                                        👁️ View
+                                    </button>
+                                    <button
+                                        className="btn btn-secondary"
+                                        style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem', color: '#ff4444' }}
+                                        onClick={() => handleDeleteResume(item.id)}
+                                    >
+                                        🗑️ Delete
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
 
