@@ -1,9 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import GradientText from '../components/GradientText';
 import { Plasma } from '../components/Plasma';
 
 function Home() {
+    const { user } = useAuth();
+
     return (
         <div className="home-container" style={{ position: 'relative' }}>
             <Plasma
@@ -41,7 +44,7 @@ function Home() {
                 </p>
 
                 <div className="home-actions slide-in" style={{ animationDelay: '0.8s' }}>
-                    <Link to="/dashboard" className="btn btn-primary btn-large glow-btn">
+                    <Link to={user ? "/dashboard" : "/login"} className="btn btn-primary btn-large glow-btn">
                         Get Started <span className="arrow">→</span>
                     </Link>
                     <Link to="/about" className="btn btn-secondary btn-large">

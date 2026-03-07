@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import GlassSurface from './components/GlassSurface';
 import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
@@ -25,7 +26,7 @@ function ProtectedRoute({ children }) {
     if (loading) return <div className="loading-container"><div className="loading"></div></div>;
 
     if (!user) {
-        return <Login />;
+        return <Navigate to="/login" replace />;
     }
 
     return children;
@@ -46,13 +47,14 @@ function Navbar({ isDarkMode, toggleTheme, isSidebarOpen, toggleSidebar }) {
     const location = useLocation();
     const { user, logout } = useAuth();
     const isHomePage = location.pathname === '/';
+    const isTransparentNav = ['/', '/login', '/signup'].includes(location.pathname);
 
     // Only show the toggle button if we are on a tool page (not Home, About, Login, or Signup)
     const showSidebarToggle = !['/', '/about', '/login', '/signup'].includes(location.pathname);
 
     return (
-        <nav className={`navbar ${isHomePage ? 'transparent-nav' : ''}`} style={{ position: isHomePage ? 'absolute' : 'relative', width: '100%', zIndex: 100 }}>
-            {!isHomePage && (
+        <nav className={`navbar ${isTransparentNav ? 'transparent-nav' : ''}`} style={{ position: isTransparentNav ? 'absolute' : 'relative', width: '100%', zIndex: 100 }}>
+            {!isTransparentNav && (
                 <GlassSurface
                     width="100%"
                     height="100%"
@@ -183,30 +185,32 @@ function App() {
     };
 
     return (
-        <AuthProvider>
-            <Router>
-                <Navbar isDarkMode={isDarkMode} toggleTheme={toggleTheme} isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
-                <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/signup" element={<Signup />} />
-                    <Route path="/about" element={<About />} />
+        <GoogleOAuthProvider clientId="426984478952-jv9jdv9sks9tfuscv5hfsb4i2e7iq84a.apps.googleusercontent.com">
+            <AuthProvider>
+                <Router>
+                    <Navbar isDarkMode={isDarkMode} toggleTheme={toggleTheme} isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
+                    <Routes>
+                        <Route path="/" element={<Home />} />
+                        <Route path="/login" element={<Login />} />
+                        <Route path="/signup" element={<Signup />} />
+                        <Route path="/about" element={<About />} />
 
-                    {/* Protected Routes wrapped in Layout with Sidebar */}
-                    <Route path="/dashboard" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><Dashboard /></Layout></ProtectedRoute>} />
-                    <Route path="/study-planner" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><StudyPlanner /></Layout></ProtectedRoute>} />
-                    <Route path="/notes-summarizer" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><NotesSummarizer /></Layout></ProtectedRoute>} />
-                    <Route path="/answer-evaluator" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><AnswerEvaluator /></Layout></ProtectedRoute>} />
-                    <Route path="/career-recommendation" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><CareerRecommendation /></Layout></ProtectedRoute>} />
-                    <Route path="/resume-builder" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><ResumeBuilder /></Layout></ProtectedRoute>} />
-                    <Route path="/mock-interview" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><MockInterview /></Layout></ProtectedRoute>} />
-                    <Route path="/doubt-solver" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><DoubtSolver /></Layout></ProtectedRoute>} />
-                    <Route path="/quiz-generator" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><QuizGenerator /></Layout></ProtectedRoute>} />
-                    <Route path="/concept-explainer" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><ConceptExplainer /></Layout></ProtectedRoute>} />
-                    <Route path="/focus-timer" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><FocusTimer /></Layout></ProtectedRoute>} />
-                </Routes>
-            </Router>
-        </AuthProvider>
+                        {/* Protected Routes wrapped in Layout with Sidebar */}
+                        <Route path="/dashboard" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><Dashboard /></Layout></ProtectedRoute>} />
+                        <Route path="/study-planner" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><StudyPlanner /></Layout></ProtectedRoute>} />
+                        <Route path="/notes-summarizer" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><NotesSummarizer /></Layout></ProtectedRoute>} />
+                        <Route path="/answer-evaluator" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><AnswerEvaluator /></Layout></ProtectedRoute>} />
+                        <Route path="/career-recommendation" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><CareerRecommendation /></Layout></ProtectedRoute>} />
+                        <Route path="/resume-builder" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><ResumeBuilder /></Layout></ProtectedRoute>} />
+                        <Route path="/mock-interview" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><MockInterview /></Layout></ProtectedRoute>} />
+                        <Route path="/doubt-solver" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><DoubtSolver /></Layout></ProtectedRoute>} />
+                        <Route path="/quiz-generator" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><QuizGenerator /></Layout></ProtectedRoute>} />
+                        <Route path="/concept-explainer" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><ConceptExplainer /></Layout></ProtectedRoute>} />
+                        <Route path="/focus-timer" element={<ProtectedRoute><Layout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}><FocusTimer /></Layout></ProtectedRoute>} />
+                    </Routes>
+                </Router>
+            </AuthProvider>
+        </GoogleOAuthProvider>
     );
 }
 

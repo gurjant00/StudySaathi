@@ -14,6 +14,8 @@ from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 import urllib3
 import ssl
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 # --- Development SSL Bypass for Windows --- 
 urllib3.disable_warnings()
@@ -264,6 +266,9 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class GoogleAuthRequest(BaseModel):
+    credential: str
+
 # Security
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
@@ -341,6 +346,42 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 @app.get("/api/auth/me", response_model=UserResponse)
 def get_me(current_user: models.User = Depends(get_current_user)):
     return current_user
+
+@app.post("/api/auth/google", response_model=Token)
+def google_auth(request: GoogleAuthRequest, db: Session = Depends(get_db)):
+    try:
+        # Verify the Google token securely
+        idinfo = id_token.verify_oauth2_token(
+            request.credential, 
+            google_requests.Request(),
+            "426984478952-jv9jdv9sks9tfuscv5hfsb4i2e7iq84a.apps.googleusercontent.com",
+            clock_skew_in_seconds=60
+        )
+        
+        email = idinfo['email']
+        name = idinfo.get('name', 'Google User')
+        
+        # Check if user exists
+        user = db.query(models.User).filter(models.User.email == email).first()
+        if not user:
+            # Create a new user with a dummy password since they use Google SSO
+            dummy_password = get_password_hash("google_oauth_dummy_" + email)
+            user = models.User(
+                email=email,
+                hashed_password=dummy_password,
+                full_name=name
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        
+        # Generate our FastAPI JWT access token so the React app works identically
+        access_token = create_access_token(data={"sub": user.email})
+        return {"access_token": access_token, "token_type": "bearer"}
+        
+    except ValueError as e:
+        # Invalid token
+        raise HTTPException(status_code=401, detail=f"Invalid Google token: {str(e)}")
 
 # ==================== API Endpoints ====================
 
