@@ -20,7 +20,7 @@ function Signup() {
         try {
             setLoading(true);
             setError('');
-            await googleAuth(credentialResponse.credential);
+            await googleAuth(credentialResponse.access_token || credentialResponse.credential);
             navigate('/dashboard');
         } catch (err) {
             setError(err.response?.data?.detail || 'Google Login failed.');

@@ -351,12 +351,24 @@ def get_me(current_user: models.User = Depends(get_current_user)):
 def google_auth(request: GoogleAuthRequest, db: Session = Depends(get_db)):
     try:
         # Verify the Google token securely
-        idinfo = id_token.verify_oauth2_token(
-            request.credential, 
-            google_requests.Request(),
-            "426984478952-jv9jdv9sks9tfuscv5hfsb4i2e7iq84a.apps.googleusercontent.com",
-            clock_skew_in_seconds=60
-        )
+        import requests
+        if request.credential.startswith("ya29."):
+            # It's a Google Access Token (returned by useGoogleLogin implicit flow)
+            user_info_resp = requests.get(
+                "https://www.googleapis.com/oauth2/v3/userinfo", 
+                headers={"Authorization": f"Bearer {request.credential}"}
+            )
+            if user_info_resp.status_code != 200:
+                raise ValueError("Invalid Google Access Token")
+            idinfo = user_info_resp.json()
+        else:
+            # It's a Google ID Token (returned by standard GoogleLogin button)
+            idinfo = id_token.verify_oauth2_token(
+                request.credential, 
+                google_requests.Request(),
+                "426984478952-jv9jdv9sks9tfuscv5hfsb4i2e7iq84a.apps.googleusercontent.com",
+                clock_skew_in_seconds=60
+            )
         
         email = idinfo['email']
         name = idinfo.get('name', 'Google User')
