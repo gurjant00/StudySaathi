@@ -109,7 +109,7 @@ StudySaathi/
 StudySaathi uses a sophisticated prompt engineering layer to turn raw LLM responses into structured, educational insights. It is configured to support lightning-fast open-source models like `GPT-OSS-20B` alongside traditional APIs for high-quality student guidance.
 
 ## 👥 Team
-Built with ❤️ for **Hackathon Nirman** by a team of dedicated student developers.
+Built with ❤️ for **Hackathon Hack-n-Win-3.0** by a team of dedicated student developers.
 
 ## 📝 License
 MIT License - Created for educational and hackathon purposes.
