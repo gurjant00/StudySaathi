@@ -1,4 +1,4 @@
-# 🎓 EduMate AI – Smart Assistant for Students
+# 🎓 StudySaathi – Your Personal AI Study Companion
 
 ![Hackathon Project](https://img.shields.io/badge/Hackathon-Project-brightgreen)
 ![React](https://img.shields.io/badge/React-18.2-blue)
@@ -7,11 +7,12 @@
 
 A visually stunning, AI-powered web platform designed to help students with exam preparation, career planning, and professional development. Built for hackathon demonstration with modern design, smooth UX, and robust backend persistence.
 
-## 🚀 NEW: EduMate AI Core Upgrades
-- **🔒 Secure Authentication**: Personal user accounts with JWT-based sessions.
-- **💾 Full Data Persistence**: All study plans, resumes, and interview feedback are saved to a local SQLite database.
-- **🎤 Voice-Enabled Mock Interviews**: Practice technical interviews with real-time speech synthesis and voice recognition.
-- **🕒 User History**: Access your past generates anytime from your dashboard.
+## 🚀 NEW: StudySaathi Core Upgrades
+- **🎨 Immersive Glassmorphism UI**: Fully overhauled aesthetic featuring dynamic WebGL Plasma backgrounds, transparent navbars, and sleek frosted glass tool cards.
+- **🔐 Google Auth SSO**: 1-click "Continue with Google" integration using `@react-oauth/google`, automatically provisioning native JWT backend sessions.
+- **🌐 Local Network Routing**: Out-of-the-box support for accessing the app on mobile devices via `.nip.io` DNS routing, bypassing strict OAuth IP restrictions.
+- **🧠 Advanced Open-Source AI**: Backend upgraded to utilize `GPT-OSS-20B` alongside traditional APIs for state-of-the-art reasoning at blazing speeds.
+- **💾 Full Data Persistence**: All study plans, resumes, and interview histories are securely saved to a local SQLite database.
 
 ## 🌟 Key Features
 
@@ -56,8 +57,8 @@ Practice technical interviews with an AI that speaks to you.
 - **FastAPI** (Python High-Performance Backend)
 - **SQLAlchemy** (Database ORM)
 - **SQLite** (Local Data Storage)
-- **PyJWT** (Secure Token Authentication)
-- **GPT-4o/Gemini** (Advanced AI Reasoning)
+- **PyJWT & Google Auth** (Secure Token Authentication & SSO)
+- **GPT-OSS-20B / Groq** (Advanced AI Reasoning)
 
 ## 📦 Installation & Setup
 
@@ -88,8 +89,8 @@ npm run dev
 ```
 
 ## 📁 Project Structure
-```
-Hackathon-Nirman/
+```text
+StudySaathi/
 ├── backend/
 │   ├── main.py              # Main API Endpoints
 │   ├── models.py            # Database Schema
@@ -105,7 +106,7 @@ Hackathon-Nirman/
 ```
 
 ## 🤖 AI Integration
-EduMate AI uses a sophisticated prompt engineering layer to turn raw LLM responses into structured, educational insights. It is configured to work with OpenAI's GPT-4o or Google's Gemini Pro for high-quality student guidance.
+StudySaathi uses a sophisticated prompt engineering layer to turn raw LLM responses into structured, educational insights. It is configured to support lightning-fast open-source models like `GPT-OSS-20B` alongside traditional APIs for high-quality student guidance.
 
 ## 👥 Team
 Built with ❤️ for **Hackathon Nirman** by a team of dedicated student developers.
